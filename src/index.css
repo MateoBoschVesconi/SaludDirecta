@@ -8,11 +8,20 @@
   body {
     @apply bg-canvas text-text-main font-sans antialiased;
   }
+
+  /* Indicadores de foco visibles según WCAG 2.1 AA (Criterio 2.4.7 Enfoque Visible) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-dark ring-offset-2;
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white font-medium py-3 px-6 rounded-lg shadow-sm hover:bg-sky-700 transition-colors duration-200 active:scale-[0.98] w-full;
+    @apply bg-primary-dark text-white font-medium py-3 px-6 rounded-lg shadow-sm hover:bg-sky-800 transition-colors duration-200 active:scale-[0.98] w-full focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-dark inline-flex items-center justify-center;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-text-main border border-borderSubtle font-medium py-3 px-6 rounded-lg shadow-sm hover:bg-slate-50 transition-colors duration-200 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary-dark inline-flex items-center justify-center;
   }
   
   .card {
@@ -20,10 +29,15 @@
   }
   
   .badge-success {
-    @apply flex items-center gap-1 text-medical-success font-medium text-xs bg-emerald-50 px-2.5 py-1 rounded-full;
+    @apply inline-flex items-center gap-1 text-emerald-800 font-semibold text-xs bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300;
   }
   
   .input-field {
-    @apply w-full border border-borderSubtle rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow;
+    @apply w-full border border-borderSubtle rounded-lg px-4 py-3 text-sm text-text-main placeholder-text-muted bg-white focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-all;
+  }
+
+  /* Enlace accesible para saltar directo al contenido principal */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:p-3 focus:bg-primary-dark focus:text-white focus:rounded-md focus:shadow-lg focus:font-medium;
   }
 }
