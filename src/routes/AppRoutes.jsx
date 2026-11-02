@@ -18,6 +18,7 @@ import RegisterPage from '../pages/auth/RegisterPage';
 
 // Páginas de Panel Profesional
 import DashboardPage from '../pages/professional/DashboardPage';
+import LicenseAndProfilePage from '../pages/professional/LicenseAndProfilePage';
 
 // Error 404
 import NotFoundPage from '../pages/NotFoundPage';
@@ -50,9 +51,8 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="agenda" element={<DashboardPage />} />
         <Route path="documentacion" element={<DashboardPage />} />
-        <Route path="matricula" element={<DashboardPage />} />
+        <Route path="matricula" element={<LicenseAndProfilePage />} />
       </Route>
     </Routes>
   );
 }
-
