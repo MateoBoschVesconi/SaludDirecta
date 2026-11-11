@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Calendar, CreditCard, CheckCircle2, Lock } from 'lucide-react';
+import { ChevronLeft, Calendar, CreditCard, CheckCircle2, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { bookAppointment } from '../../api/appointmentService';
 
 export default function CheckoutPage() {
   const location = useLocation();
@@ -8,6 +9,7 @@ export default function CheckoutPage() {
   const bookingData = location.state;
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   if (!bookingData) {
     return (
@@ -20,30 +22,31 @@ export default function CheckoutPage() {
     );
   }
 
-  const handlePayAndConfirm = () => {
+  const handlePayAndConfirm = async () => {
     setIsProcessing(true);
+    setErrorMessage('');
 
-    setTimeout(() => {
-      // Guardar el turno en el almacenamiento local para "Mis Turnos"
-      const newAppointment = {
-        id: 'TUR-' + Date.now().toString().slice(-6),
+    try {
+      await bookAppointment({
         professionalName: bookingData.professionalName,
         specialty: bookingData.specialty,
         planTitle: bookingData.planTitle,
         date: bookingData.selectedDate,
         time: bookingData.selectedTime,
-        price: bookingData.totalAmount,
+        totalAmount: bookingData.totalAmount,
         status: 'confirmado',
-        paidAt: new Date().toISOString(),
-        paymentId: 'MP-' + Math.floor(100000 + Math.random() * 900000),
-      };
-
-      const existing = JSON.parse(localStorage.getItem('salud_directa_turnos') || '[]');
-      localStorage.setItem('salud_directa_turnos', JSON.stringify([newAppointment, ...existing]));
+      });
 
       setIsProcessing(false);
       navigate('/mis-turnos?exito=true');
-    }, 1200);
+    } catch (err) {
+      setIsProcessing(false);
+      setErrorMessage(
+        err.message?.includes('CONCURRENCY_COLLISION')
+          ? 'El horario seleccionado acaba de ser tomado por otro paciente (Conflicto de concurrencia). Por favor elegí una franja horaria alternativa.'
+          : err.message || 'Error al procesar la reserva.'
+      );
+    }
   };
 
   return (
@@ -56,6 +59,23 @@ export default function CheckoutPage() {
       </button>
 
       <h1 className="text-2xl font-bold text-text-main mb-6">Resumen y Pago de la Consulta</h1>
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-300 p-4 rounded-xl text-xs text-red-900 mb-6 flex items-start gap-3 shadow-sm animate-in fade-in" role="alert">
+          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="space-y-2">
+            <strong className="block">Conflicto de Disponibilidad (Concurrencia):</strong>
+            <p className="leading-relaxed">{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="bg-red-700 hover:bg-red-800 text-white font-semibold py-1.5 px-3 rounded-md text-xs transition-colors inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Volver a seleccionar otro horario
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card mb-6 space-y-5">
         <div>

@@ -21,6 +21,7 @@ import DashboardPage from '../pages/professional/DashboardPage';
 import LicenseAndProfilePage from '../pages/professional/LicenseAndProfilePage';
 import DocumentVerificationPage from '../pages/professional/DocumentVerificationPage';
 import PackagesManagementPage from '../pages/professional/PackagesManagementPage';
+import ScheduleConfigPage from '../pages/professional/ScheduleConfigPage';
 
 // Error 404
 import NotFoundPage from '../pages/NotFoundPage';
@@ -51,7 +52,7 @@ export default function AppRoutes() {
         }
       >
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="agenda" element={<DashboardPage />} />
+        <Route path="agenda" element={<ScheduleConfigPage />} />
         <Route path="paquetes" element={<PackagesManagementPage />} />
         <Route path="documentacion" element={<DocumentVerificationPage />} />
         <Route path="matricula" element={<LicenseAndProfilePage />} />

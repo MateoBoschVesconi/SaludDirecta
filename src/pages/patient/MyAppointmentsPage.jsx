@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Clock, FileText, CheckCircle2, Calendar, ArrowRight } from 'lucide-react';
+import { Clock, FileText, CheckCircle2, Calendar, ArrowRight, XCircle, AlertTriangle } from 'lucide-react';
+import { updateAppointmentStatus } from '../../api/appointmentService';
 
 const DEFAULT_APPOINTMENTS = [
   {
@@ -21,7 +22,7 @@ export default function MyAppointmentsPage() {
   const [searchParams] = useSearchParams();
   const justBooked = searchParams.get('exito') === 'true';
 
-  const [appointments] = useState(() => {
+  const [appointments, setAppointments] = useState(() => {
     try {
       const saved = localStorage.getItem('salud_directa_turnos');
       if (saved) {
@@ -34,16 +35,63 @@ export default function MyAppointmentsPage() {
     }
   });
 
+  const [notification, setNotification] = useState('');
+
+  // Máquina de estados visual (Criterio 2 - HU9)
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'solicitado':
+        return (
+          <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" aria-hidden="true" /> Solicitado / Pendiente
+          </span>
+        );
       case 'confirmado':
-        return <span className="badge-success text-[11px]">Confirmado y Pagado</span>;
+        return (
+          <span className="badge-success text-[11px]">
+            <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> Confirmado y Pagado
+          </span>
+        );
       case 'cumplido':
-        return <span className="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-slate-300">Cumplido</span>;
+        return (
+          <span className="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-slate-300 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-slate-500" aria-hidden="true" /> Consulta Cumplida
+          </span>
+        );
       case 'cancelado':
-        return <span className="bg-red-100 text-red-800 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-red-300">Cancelado</span>;
+        return (
+          <span className="bg-red-100 text-red-800 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-red-300 flex items-center gap-1">
+            <XCircle className="w-3 h-3" aria-hidden="true" /> Cancelado
+          </span>
+        );
+      case 'ausente':
+        return (
+          <span className="bg-rose-100 text-rose-800 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-rose-300 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Ausente sin aviso
+          </span>
+        );
       default:
         return <span className="bg-sky-100 text-sky-800 text-[11px] font-semibold px-2.5 py-1 rounded-full">{status}</span>;
+    }
+  };
+
+  const handleCancelAppointment = async (appt) => {
+    if (appt.status !== 'confirmado' && appt.status !== 'solicitado') {
+      alert('Este turno no puede ser cancelado en su estado actual.');
+      return;
+    }
+
+    if (confirm(`¿Estás seguro de que deseás cancelar el turno del ${appt.date} a las ${appt.time}? Se liberará el horario inmediatamente.`)) {
+      try {
+        await updateAppointmentStatus(appt.id, 'cancelado');
+        setAppointments((prev) =>
+          prev.map((item) => (item.id === appt.id ? { ...item, status: 'cancelado' } : item))
+        );
+        setNotification('El turno fue cancelado y el horario quedó disponible para otros pacientes.');
+        setTimeout(() => setNotification(''), 4500);
+      } catch (err) {
+        alert(err.message || 'Error al cancelar el turno.');
+      }
     }
   };
 
@@ -58,6 +106,13 @@ export default function MyAppointmentsPage() {
               Te enviamos una notificación a tu casilla de correo y celular registrado con los detalles del turno y acceso al consultorio.
             </p>
           </div>
+        </div>
+      )}
+
+      {notification && (
+        <div className="bg-sky-50 border border-sky-300 rounded-xl p-4 mb-6 text-xs text-sky-900 font-semibold flex items-center gap-2 animate-in fade-in" role="status">
+          <CheckCircle2 className="w-4 h-4 text-primary-dark" aria-hidden="true" />
+          <span>{notification}</span>
         </div>
       )}
 
@@ -86,7 +141,14 @@ export default function MyAppointmentsPage() {
       ) : (
         <div className="space-y-4" role="feed" aria-label="Historial de turnos">
           {appointments.map((appt) => (
-            <div key={appt.id} className="card border-l-4 border-l-primary-dark hover:shadow-md transition-shadow">
+            <div 
+              key={appt.id} 
+              className={`card border-l-4 transition-all ${
+                appt.status === 'cancelado' 
+                  ? 'border-l-slate-300 bg-slate-50/60 opacity-80' 
+                  : 'border-l-primary-dark hover:shadow-md'
+              }`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -116,18 +178,25 @@ export default function MyAppointmentsPage() {
 
                   <div className="mt-4 pt-3 border-t border-borderSubtle flex flex-wrap items-center gap-4 text-xs">
                     <button
+                      type="button"
                       onClick={() => alert(`Descargando comprobante oficial ${appt.paymentId} (PDF)...`)}
                       className="text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded"
                     >
                       <FileText className="w-4 h-4" aria-hidden="true" /> Descargar Comprobante Oficial
                     </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      onClick={() => alert('Para reprogramar tu turno, coordiná con el profesional con al menos 24 hs de anticipación.')}
-                      className="text-text-muted hover:text-text-main font-medium focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded"
-                    >
-                      Reprogramar o Cancelar
-                    </button>
+
+                    {(appt.status === 'confirmado' || appt.status === 'solicitado') && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelAppointment(appt)}
+                          className="text-medical-error hover:text-red-700 font-semibold focus-visible:ring-2 focus-visible:ring-medical-error p-1 rounded transition-colors"
+                        >
+                          Cancelar Turno
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
