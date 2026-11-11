@@ -8,6 +8,23 @@ export default function ProfessionalProfilePage() {
   const navigate = useNavigate();
   const pro = PROFESSIONALS.find((p) => p.id === Number(id));
 
+  // Cargar paquetes dinámicos configurados por el profesional si existen
+  const availablePackages = React.useMemo(() => {
+    if (!pro) return [];
+    if (pro.id === 1) {
+      try {
+        const saved = localStorage.getItem('salud_directa_pro_packages');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return parsed.filter((p) => p.isActive !== false);
+        }
+      } catch {
+        // Fallback a los paquetes por defecto
+      }
+    }
+    return pro.packages || [];
+  }, [pro]);
+
   const [selectedPlan, setSelectedPlan] = useState('individual'); // 'individual' o package id
 
   if (!pro) {
@@ -115,8 +132,8 @@ export default function ProfessionalProfilePage() {
             </div>
 
             {/* Opciones de Paquetes (HU5) */}
-            {pro.packages?.map((pkg) => {
-              const totalPrice = pro.price * pkg.sessions * (1 - pkg.discountPercent / 100);
+            {availablePackages?.map((pkg) => {
+              const totalPrice = pkg.totalPrice || pro.price * pkg.sessions * (1 - pkg.discountPercent / 100);
               const isSelected = selectedPlan === pkg.id;
 
               return (
@@ -141,7 +158,10 @@ export default function ProfessionalProfilePage() {
                         {pkg.discountPercent}% OFF
                       </span>
                     </div>
-                    <div className="text-xs text-text-muted">Incluye {pkg.sessions} sesiones programadas</div>
+                    <div className="text-xs text-text-muted">
+                      Incluye {pkg.sessions} sesiones programadas
+                      {pkg.paymentConditions && <span className="block text-[11px] text-slate-500 mt-0.5">· {pkg.paymentConditions}</span>}
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="font-extrabold text-xl text-text-main">

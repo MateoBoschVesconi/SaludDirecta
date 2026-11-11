@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, ChevronRight, Check } from 'lucide-react';
 import { PROFESSIONALS } from '../../data/mockData';
@@ -11,6 +11,20 @@ export default function BookingPage() {
   const pro = PROFESSIONALS.find((p) => p.id === Number(id));
   const planId = searchParams.get('plan') || 'individual';
 
+  // Calcular precio según el plan seleccionado (soporte dinámico para paquetes creados por el profesional)
+  const availablePackages = useMemo(() => {
+    if (!pro) return [];
+    if (pro.id === 1) {
+      try {
+        const saved = localStorage.getItem('salud_directa_pro_packages');
+        if (saved) return JSON.parse(saved);
+      } catch {
+        // Fallback
+      }
+    }
+    return pro.packages || [];
+  }, [pro]);
+
   const [selectedDate, setSelectedDate] = useState(pro?.availableSlots?.[0]?.date || '');
   const [selectedTime, setSelectedTime] = useState('');
 
@@ -22,11 +36,10 @@ export default function BookingPage() {
     );
   }
 
-  // Calcular precio según el plan seleccionado
-  const selectedPackage = pro.packages?.find((p) => p.id === planId);
+  const selectedPackage = availablePackages?.find((p) => p.id === planId);
   const planTitle = selectedPackage ? selectedPackage.title : 'Consulta Individual';
   const totalAmount = selectedPackage
-    ? Math.round(pro.price * selectedPackage.sessions * (1 - selectedPackage.discountPercent / 100))
+    ? (selectedPackage.totalPrice || Math.round(pro.price * selectedPackage.sessions * (1 - selectedPackage.discountPercent / 100)))
     : pro.price;
 
   const currentSlotGroup = pro.availableSlots?.find((s) => s.date === selectedDate);
@@ -149,4 +162,3 @@ export default function BookingPage() {
     </div>
   );
 }
-

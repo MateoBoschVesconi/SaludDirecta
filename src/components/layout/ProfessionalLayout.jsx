@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, FileText, UserCheck, LogOut, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, UserCheck, Package, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ProfessionalLayout() {
@@ -15,6 +15,7 @@ export default function ProfessionalLayout() {
   const navItems = [
     { to: '/profesional/dashboard', label: 'Dashboard & Métricas', icon: LayoutDashboard },
     { to: '/profesional/agenda', label: 'Mi Agenda y Franjas', icon: Calendar },
+    { to: '/profesional/paquetes', label: 'Paquetes de Sesiones', icon: Package },
     { to: '/profesional/documentacion', label: 'Carga Documental / OCR', icon: FileText },
     { to: '/profesional/matricula', label: 'Matrícula & Honorarios', icon: UserCheck },
   ];
@@ -83,4 +84,3 @@ export default function ProfessionalLayout() {
     </div>
   );
 }
-
