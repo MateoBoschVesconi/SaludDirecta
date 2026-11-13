@@ -36,3 +36,36 @@ internal sealed class TokenFalso : ITokenService
     public TokenEmitido Emitir(Usuario usuario) =>
         new("token-de-" + usuario.Id, DateTime.UtcNow.AddHours(1));
 }
+
+/// <summary>Registro oficial falso: devuelve lo que el test le indique, o lanza una excepción.</summary>
+internal sealed class RegistroFalso(RespuestaRegistro? respuesta = null, Exception? falla = null)
+    : IRegistroProfesionales
+{
+    public int Consultas { get; private set; }
+
+    public Task<RespuestaRegistro> ConsultarAsync(string matricula, string jurisdiccion, CancellationToken ct)
+    {
+        Consultas++;
+        if (falla is not null) throw falla;
+        return Task.FromResult(respuesta ?? new RespuestaRegistro(ResultadoConsulta.NoEncontrada));
+    }
+}
+
+internal sealed class VerificacionRepositorioEnMemoria : IVerificacionRepository
+{
+    public List<VerificacionMatricula> Verificaciones { get; } = [];
+    public List<EventoAuditoria> Auditoria { get; } = [];
+
+    public Task RegistrarAsync(VerificacionMatricula verificacion, EventoAuditoria evento, CancellationToken ct)
+    {
+        Verificaciones.Add(verificacion);
+        Auditoria.Add(evento);
+        return Task.CompletedTask;
+    }
+
+    public Task<VerificacionMatricula?> ObtenerUltimaAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult(Verificaciones
+            .Where(v => v.UsuarioId == usuarioId)
+            .OrderByDescending(v => v.VerificadaEn)
+            .FirstOrDefault());
+}
