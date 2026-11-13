@@ -1,0 +1,18 @@
+# PostgreSQL local para desarrollo (opcional si usás Supabase).
+# Uso:  docker compose up -d
+services:
+  db:
+    image: postgres:16
+    container_name: saluddirecta-db
+    environment:
+      POSTGRES_DB: saluddirecta
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - saluddirecta-data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  saluddirecta-data:
