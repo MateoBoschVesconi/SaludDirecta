@@ -118,3 +118,103 @@ internal sealed class PrestacionRepositorioEnMemoria : IPrestacionRepository
 
     public Task GuardarCambiosAsync(CancellationToken ct) => Task.CompletedTask;
 }
+
+/// <summary>Reloj con una hora fija, para que los tests de turnos no dependan de cuándo se corren.</summary>
+internal sealed class RelojFijo(DateTimeOffset ahora) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => ahora;
+}
+
+internal sealed class AgendaRepositorioEnMemoria : IAgendaRepository
+{
+    public List<FranjaHoraria> Franjas { get; } = [];
+    public List<ConfiguracionAgenda> Configuraciones { get; } = [];
+    public List<Ausencia> Ausencias { get; } = [];
+
+    public Task<IReadOnlyList<FranjaHoraria>> ObtenerFranjasAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<FranjaHoraria>>(Franjas.Where(f => f.UsuarioId == usuarioId).ToList());
+
+    public Task<ConfiguracionAgenda?> ObtenerConfiguracionAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult(Configuraciones.FirstOrDefault(c => c.UsuarioId == usuarioId));
+
+    public Task GuardarAgendaAsync(
+        Guid usuarioId, IReadOnlyList<FranjaHoraria> franjas, ConfiguracionAgenda configuracion, CancellationToken ct)
+    {
+        Franjas.RemoveAll(f => f.UsuarioId == usuarioId);
+        Franjas.AddRange(franjas);
+        if (!Configuraciones.Contains(configuracion)) Configuraciones.Add(configuracion);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<Ausencia>> ListarAusenciasAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Ausencia>>(Ausencias
+            .Where(a => a.UsuarioId == usuarioId).OrderBy(a => a.Desde).ToList());
+
+    public Task AgregarAusenciaAsync(Ausencia ausencia, CancellationToken ct)
+    {
+        Ausencias.Add(ausencia);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> EliminarAusenciaAsync(Guid id, Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult(Ausencias.RemoveAll(a => a.Id == id && a.UsuarioId == usuarioId) > 0);
+}
+
+/// <summary>
+/// Turnos en memoria. Imita lo que garantiza la base de datos: al guardar, rechaza un turno activo
+/// que se superponga con otro del mismo profesional, y lo hace de forma atómica (con un candado).
+/// </summary>
+internal sealed class TurnoRepositorioEnMemoria : ITurnoRepository
+{
+    private readonly object _candado = new();
+    private readonly List<Turno> _turnos = [];
+
+    public IReadOnlyList<Turno> Todos
+    {
+        get { lock (_candado) return _turnos.ToList(); }
+    }
+
+    public Task<IReadOnlyList<Turno>> ListarActivosDelDiaAsync(Guid profesionalId, DateOnly fecha, CancellationToken ct)
+    {
+        lock (_candado)
+        {
+            var inicio = fecha.ToDateTime(TimeOnly.MinValue);
+            return Task.FromResult<IReadOnlyList<Turno>>(_turnos
+                .Where(t => t.ProfesionalId == profesionalId && t.OcupaHorario
+                            && t.Inicio >= inicio && t.Inicio < inicio.AddDays(1))
+                .ToList());
+        }
+    }
+
+    public Task AgregarAsync(Turno turno, CancellationToken ct)
+    {
+        lock (_candado)
+        {
+            if (_turnos.Any(t => t.ProfesionalId == turno.ProfesionalId && t.OcupaHorario
+                                 && t.Solapa(turno.Inicio, turno.Fin)))
+                throw new TurnoOcupadoException("El horario elegido ya fue reservado por otro paciente.");
+
+            _turnos.Add(turno);
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<Turno?> ObtenerAsync(Guid id, CancellationToken ct)
+    {
+        lock (_candado) return Task.FromResult(_turnos.FirstOrDefault(t => t.Id == id));
+    }
+
+    public Task GuardarCambiosAsync(CancellationToken ct) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<Turno>> ListarDePacienteAsync(Guid pacienteId, CancellationToken ct)
+    {
+        lock (_candado)
+            return Task.FromResult<IReadOnlyList<Turno>>(_turnos.Where(t => t.PacienteId == pacienteId).ToList());
+    }
+
+    public Task<IReadOnlyList<Turno>> ListarDeProfesionalAsync(Guid profesionalId, CancellationToken ct)
+    {
+        lock (_candado)
+            return Task.FromResult<IReadOnlyList<Turno>>(_turnos.Where(t => t.ProfesionalId == profesionalId).ToList());
+    }
+}
