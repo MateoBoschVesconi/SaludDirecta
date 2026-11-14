@@ -24,6 +24,8 @@ public static class DependencyInjection
 
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
         services.AddScoped<IVerificacionRepository, VerificacionRepository>();
+        services.AddScoped<IPerfilRepository, PerfilRepository>();
+        services.AddScoped<IPrestacionRepository, PrestacionRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddSingleton(TimeProvider.System);

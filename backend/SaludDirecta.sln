@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{46E4AAEE-4608-41FC-98F3-7B84AAF05B4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaludDirecta.Domain", "src\SaludDirecta.Domain\SaludDirecta.Domain.csproj", "{1BC1A999-2947-4E93-831B-74D868641AFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaludDirecta.Application", "src\SaludDirecta.Application\SaludDirecta.Application.csproj", "{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaludDirecta.Infrastructure", "src\SaludDirecta.Infrastructure\SaludDirecta.Infrastructure.csproj", "{1D4233F5-4E58-4DE8-900B-72163746EFD0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaludDirecta.Api", "src\SaludDirecta.Api\SaludDirecta.Api.csproj", "{FF4BE607-C377-4CE6-B097-CCF2613868C7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7A112E5C-8D90-496B-8751-A046C2BFBD6A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaludDirecta.Tests", "tests\SaludDirecta.Tests\SaludDirecta.Tests.csproj", "{2B2D4B16-350F-4679-AA06-F9995A6965D2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1BC1A999-2947-4E93-831B-74D868641AFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BC1A999-2947-4E93-831B-74D868641AFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BC1A999-2947-4E93-831B-74D868641AFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BC1A999-2947-4E93-831B-74D868641AFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D4233F5-4E58-4DE8-900B-72163746EFD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D4233F5-4E58-4DE8-900B-72163746EFD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D4233F5-4E58-4DE8-900B-72163746EFD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D4233F5-4E58-4DE8-900B-72163746EFD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF4BE607-C377-4CE6-B097-CCF2613868C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF4BE607-C377-4CE6-B097-CCF2613868C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF4BE607-C377-4CE6-B097-CCF2613868C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF4BE607-C377-4CE6-B097-CCF2613868C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B2D4B16-350F-4679-AA06-F9995A6965D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B2D4B16-350F-4679-AA06-F9995A6965D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B2D4B16-350F-4679-AA06-F9995A6965D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B2D4B16-350F-4679-AA06-F9995A6965D2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1BC1A999-2947-4E93-831B-74D868641AFB} = {46E4AAEE-4608-41FC-98F3-7B84AAF05B4A}
+		{533FD5D9-DDDF-4980-B0B5-48FA525CA7BE} = {46E4AAEE-4608-41FC-98F3-7B84AAF05B4A}
+		{1D4233F5-4E58-4DE8-900B-72163746EFD0} = {46E4AAEE-4608-41FC-98F3-7B84AAF05B4A}
+		{FF4BE607-C377-4CE6-B097-CCF2613868C7} = {46E4AAEE-4608-41FC-98F3-7B84AAF05B4A}
+		{2B2D4B16-350F-4679-AA06-F9995A6965D2} = {7A112E5C-8D90-496B-8751-A046C2BFBD6A}
+	EndGlobalSection
+EndGlobal

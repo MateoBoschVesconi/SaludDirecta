@@ -69,3 +69,52 @@ internal sealed class VerificacionRepositorioEnMemoria : IVerificacionRepository
             .OrderByDescending(v => v.VerificadaEn)
             .FirstOrDefault());
 }
+
+internal sealed class PerfilRepositorioEnMemoria : IPerfilRepository
+{
+    public List<PerfilProfesional> Perfiles { get; } = [];
+    public List<HistorialHonorario> Historial { get; } = [];
+    public List<EventoAuditoria> Auditoria { get; } = [];
+    public int Guardados { get; private set; }
+
+    public Task<PerfilProfesional?> ObtenerPorUsuarioAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult(Perfiles.FirstOrDefault(p => p.UsuarioId == usuarioId));
+
+    public Task GuardarAsync(
+        PerfilProfesional perfil, HistorialHonorario? historial, EventoAuditoria? evento, CancellationToken ct)
+    {
+        Guardados++;
+        if (!Perfiles.Contains(perfil)) Perfiles.Add(perfil);
+        if (historial is not null) Historial.Add(historial);
+        if (evento is not null) Auditoria.Add(evento);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<HistorialHonorario>> ObtenerHistorialAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<HistorialHonorario>>(Historial
+            .Where(h => h.UsuarioId == usuarioId)
+            .OrderByDescending(h => h.CambiadoEn)
+            .ToList());
+}
+
+internal sealed class PrestacionRepositorioEnMemoria : IPrestacionRepository
+{
+    public List<Prestacion> Todas { get; } = [];
+
+    public Task<IReadOnlyList<Prestacion>> ListarActivasAsync(Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Prestacion>>(Todas
+            .Where(p => p.UsuarioId == usuarioId && p.Activa)
+            .OrderBy(p => p.Nombre)
+            .ToList());
+
+    public Task<Prestacion?> ObtenerAsync(Guid id, Guid usuarioId, CancellationToken ct) =>
+        Task.FromResult(Todas.FirstOrDefault(p => p.Id == id && p.UsuarioId == usuarioId && p.Activa));
+
+    public Task AgregarAsync(Prestacion prestacion, CancellationToken ct)
+    {
+        Todas.Add(prestacion);
+        return Task.CompletedTask;
+    }
+
+    public Task GuardarCambiosAsync(CancellationToken ct) => Task.CompletedTask;
+}

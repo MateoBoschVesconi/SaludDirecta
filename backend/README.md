@@ -6,7 +6,7 @@ Clean Architecture: **Domain → Application → Infrastructure → Api**.
 backend/
 ├─ src/
 │  ├─ SaludDirecta.Domain          Entidades y reglas de negocio (sin dependencias)
-│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService)
+│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService, PerfilService, PrestacionService)
 │  ├─ SaludDirecta.Infrastructure  EF Core + PostgreSQL, hash PBKDF2, JWT, adapter del registro oficial
 │  └─ SaludDirecta.Api             Controllers, JWT, CORS, Swagger
 ├─ tests/SaludDirecta.Tests        xUnit
@@ -78,13 +78,42 @@ La matrícula `SIN-SERVICIO` simula que el registro oficial está caído. Cualqu
 **Pendiente de HU2:** el paso de "revisión manual" solo marca el caso; todavía no hay un rol de administrador
 ni una pantalla para resolverlo. Tampoco está el cliente real de REFEPS/SISA (necesita credenciales).
 
+### HU4 – Perfil profesional, honorarios y prestaciones
+
+Todos los endpoints `me/...` requieren JWT con rol `profesional`.
+
+| Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- |
+| `GET /api/profesionales/me/perfil` | JWT, `profesional` | Perfil propio (vacío si todavía no lo completó). Incluye el estado de verificación. |
+| `PUT /api/profesionales/me/perfil` | JWT, `profesional` | Crea o actualiza especialidad, descripción, dirección, ciudad, teléfono, duración de la sesión y accesibilidad. |
+| `PUT /api/profesionales/me/perfil/honorario` | JWT, `profesional` | Fija o modifica el honorario de la consulta. Cada cambio queda en el historial y en la auditoría. |
+| `POST /api/profesionales/me/perfil/publicar` | JWT, `profesional` | Publica el perfil. Responde 400 si todavía no tiene honorario. |
+| `POST /api/profesionales/me/perfil/despublicar` | JWT, `profesional` | Oculta el perfil. |
+| `GET /api/profesionales/me/perfil/honorarios/historial` | JWT, `profesional` | Cambios de honorario, del más reciente al más antiguo (`valorAnterior`, `valorNuevo`, `cambiadoEn`). |
+| `GET /api/profesionales/me/prestaciones` | JWT, `profesional` | Prestaciones activas propias. |
+| `POST /api/profesionales/me/prestaciones` | JWT, `profesional` | Alta de prestación (`nombre`, `duracionMinutos`). Responde 201. |
+| `PUT /api/profesionales/me/prestaciones/{id}` | JWT, `profesional` | Modifica una prestación propia. |
+| `DELETE /api/profesionales/me/prestaciones/{id}` | JWT, `profesional` | Baja lógica (204). Si es de otro profesional responde 404. |
+| `GET /api/profesionales/{id}/perfil` | público | Vista pública: datos, honorario, prestaciones y estado de verificación. 404 si no existe o no está publicado. |
+
+`{id}` es el `id` del usuario profesional (el mismo que devuelve el login).
+
+Reglas (criterios de aceptación del plan):
+1. **No se puede publicar sin el valor de la consulta.** Lo controla el dominio y además un `check` en la base de datos.
+2. **Cada modificación del honorario queda registrada** en `historial_honorarios` (valor anterior y nuevo) y en `auditoria` con la acción `MODIFICACION_HONORARIOS` (RNF-04). Si se repite el mismo valor no se registra nada.
+3. **El perfil público muestra el honorario y el estado de verificación** (`verificado` y `verificadaEn`, tomados de la HU2).
+
+Notas:
+- El honorario tiene su propio endpoint a propósito: así el historial y la auditoría no dependen de cómo se arme el formulario del frontend. Al guardar la pantalla de perfil, el frontend llama a `PUT me/perfil` y, si cambió el precio, a `PUT me/perfil/honorario`.
+- Las prestaciones se dan de baja de forma lógica (`activa = false`) para no romper turnos futuros que las usen (HU8 y HU9).
+
 ## Puesta en marcha (Windows / PowerShell)
 
 Requisitos: **.NET 8 SDK** (`dotnet --version` debe empezar con 8) y una base PostgreSQL.
 
 ### 1. Base de datos
 
-Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql` y después `002_verificaciones.sql`
+Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql` y `003_perfiles.sql`
 (en pgAdmin: clic derecho en la base → Query Tool → abrir archivo → F5).
 
 **A) PostgreSQL instalado en tu PC.** `appsettings.Development.json` espera usuario `postgres`,
@@ -117,7 +146,7 @@ dotnet test
 ## Notas de seguridad
 - `appsettings.Development.json` trae una clave JWT **solo para desarrollo**. En producción definí `Jwt__Key`
   (mínimo 32 caracteres) y `ConnectionStrings__Default` como variables de entorno.
-- Las tablas `usuarios`, `verificaciones_matricula` y `auditoria` tienen RLS activado sin políticas:
+- Las tablas `usuarios`, `verificaciones_matricula`, `auditoria`, `perfiles_profesionales`, `historial_honorarios` y `prestaciones` tienen RLS activado sin políticas:
   la clave `anon` del frontend no puede leerlas.
 - Las contraseñas se guardan con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y sal aleatoria.
 - No se guardan datos clínicos (RNF-02).

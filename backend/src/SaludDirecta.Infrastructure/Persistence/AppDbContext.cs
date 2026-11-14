@@ -8,6 +8,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<VerificacionMatricula> Verificaciones => Set<VerificacionMatricula>();
     public DbSet<EventoAuditoria> Auditoria => Set<EventoAuditoria>();
+    public DbSet<PerfilProfesional> Perfiles => Set<PerfilProfesional>();
+    public DbSet<HistorialHonorario> HistorialHonorarios => Set<HistorialHonorario>();
+    public DbSet<Prestacion> Prestaciones => Set<Prestacion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +65,52 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(a => a.Detalle).HasColumnName("detalle").IsRequired();
             e.Property(a => a.CreadoEn).HasColumnName("creado_en");
             e.HasIndex(a => new { a.UsuarioId, a.CreadoEn });
+        });
+
+        modelBuilder.Entity<PerfilProfesional>(e =>
+        {
+            e.ToTable("perfiles_profesionales");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(p => p.UsuarioId).HasColumnName("usuario_id");
+            e.Property(p => p.Especialidad).HasColumnName("especialidad").HasMaxLength(100);
+            e.Property(p => p.Descripcion).HasColumnName("descripcion").HasMaxLength(1000);
+            e.Property(p => p.Direccion).HasColumnName("direccion").HasMaxLength(200);
+            e.Property(p => p.Ciudad).HasColumnName("ciudad").HasMaxLength(100);
+            e.Property(p => p.Telefono).HasColumnName("telefono").HasMaxLength(40);
+            e.Property(p => p.HonorarioConsulta).HasColumnName("honorario_consulta").HasPrecision(12, 2);
+            e.Property(p => p.DuracionSesionMinutos).HasColumnName("duracion_sesion_minutos");
+            e.Property(p => p.TieneRampa).HasColumnName("tiene_rampa");
+            e.Property(p => p.TieneAscensor).HasColumnName("tiene_ascensor");
+            e.Property(p => p.TieneBanoAdaptado).HasColumnName("tiene_bano_adaptado");
+            e.Property(p => p.Publicado).HasColumnName("publicado");
+            e.Property(p => p.ActualizadoEn).HasColumnName("actualizado_en");
+            e.HasIndex(p => p.UsuarioId).IsUnique();
+        });
+
+        modelBuilder.Entity<HistorialHonorario>(e =>
+        {
+            e.ToTable("historial_honorarios");
+            e.HasKey(h => h.Id);
+            e.Property(h => h.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(h => h.UsuarioId).HasColumnName("usuario_id");
+            e.Property(h => h.ValorAnterior).HasColumnName("valor_anterior").HasPrecision(12, 2);
+            e.Property(h => h.ValorNuevo).HasColumnName("valor_nuevo").HasPrecision(12, 2);
+            e.Property(h => h.CambiadoEn).HasColumnName("cambiado_en");
+            e.HasIndex(h => new { h.UsuarioId, h.CambiadoEn });
+        });
+
+        modelBuilder.Entity<Prestacion>(e =>
+        {
+            e.ToTable("prestaciones");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(p => p.UsuarioId).HasColumnName("usuario_id");
+            e.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(120).IsRequired();
+            e.Property(p => p.DuracionMinutos).HasColumnName("duracion_minutos");
+            e.Property(p => p.Activa).HasColumnName("activa");
+            e.Property(p => p.CreadoEn).HasColumnName("creado_en");
+            e.HasIndex(p => new { p.UsuarioId, p.Activa });
         });
     }
 }
