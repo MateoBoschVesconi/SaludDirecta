@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using SaludDirecta.Application.Abstractions;
+using SaludDirecta.Infrastructure.Notificaciones;
 using SaludDirecta.Infrastructure.Persistence;
 using SaludDirecta.Infrastructure.Refeps;
 using SaludDirecta.Infrastructure.Security;
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IPrestacionRepository, PrestacionRepository>();
         services.AddScoped<IAgendaRepository, AgendaRepository>();
         services.AddScoped<ITurnoRepository, TurnoRepository>();
+        services.AddScoped<INotificacionRepository, NotificacionRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddSingleton(TimeProvider.System);
@@ -36,6 +38,11 @@ public static class DependencyInjection
         // Adapter del registro oficial: hoy es el simulado. Para usar REFEPS/SISA real,
         // se reemplaza esta línea por la clase que implemente IRegistroProfesionales.
         services.AddSingleton<IRegistroProfesionales, RegistroProfesionalesSimulado>();
+
+        // Canal de envío de notificaciones (HU10): hoy es el simulado, que deja el aviso en el registro del
+        // sistema. Para mandar mails reales se escribe otra clase que implemente IEnviadorNotificaciones
+        // y se reemplaza esta línea.
+        services.AddScoped<IEnviadorNotificaciones, EnviadorEnRegistro>();
 
         return services;
     }

@@ -11,7 +11,8 @@ public sealed class TurnoService(
     ITurnoRepository turnos,
     AgendaService agenda,
     IUsuarioRepository usuarios,
-    TimeProvider reloj)
+    TimeProvider reloj,
+    IEnumerable<ITurnoObservador> observadores)
 {
     public const string MensajeOcupado = "El horario elegido ya fue reservado por otro paciente.";
 
@@ -46,6 +47,8 @@ public sealed class TurnoService(
             fecha.ToDateTime(hora), disponibilidad.DuracionMinutos, reloj.GetUtcNow().UtcDateTime);
 
         await turnos.AgregarAsync(turno, ct); // si otro ganó la carrera, lanza TurnoOcupadoException
+
+        await NotificarAsync(o => o.TurnoSolicitadoAsync(turno, ct), ct);
 
         return await ADtoAsync(turno, new Dictionary<Guid, string>(), ct);
     }
@@ -93,7 +96,32 @@ public sealed class TurnoService(
         ReglasDominio.Ejecutar(() => turno.CambiarEstado(nuevo, reloj.GetUtcNow().UtcDateTime));
         await turnos.GuardarCambiosAsync(ct);
 
+        await NotificarAsync(o => o.EstadoCambiadoAsync(turno, usuarioId, ct), ct);
+
         return await ADtoAsync(turno, new Dictionary<Guid, string>(), ct);
+    }
+
+    /// <summary>
+    /// Avisa a los observadores (HU10). El turno ya está guardado, así que si un aviso falla no se deshace:
+    /// la reserva o el cambio de estado siguen siendo válidos.
+    /// </summary>
+    private async Task NotificarAsync(Func<ITurnoObservador, Task> aviso, CancellationToken ct)
+    {
+        foreach (var observador in observadores)
+        {
+            try
+            {
+                await aviso(observador);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                // La notificación es secundaria respecto del turno.
+            }
+        }
     }
 
     private async Task<Turno> ObtenerDelParticipanteAsync(Guid usuarioId, Guid turnoId, CancellationToken ct)
