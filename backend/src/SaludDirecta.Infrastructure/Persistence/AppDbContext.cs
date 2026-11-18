@@ -11,6 +11,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PerfilProfesional> Perfiles => Set<PerfilProfesional>();
     public DbSet<HistorialHonorario> HistorialHonorarios => Set<HistorialHonorario>();
     public DbSet<Prestacion> Prestaciones => Set<Prestacion>();
+    public DbSet<FranjaHoraria> Franjas => Set<FranjaHoraria>();
+    public DbSet<Ausencia> Ausencias => Set<Ausencia>();
+    public DbSet<ConfiguracionAgenda> ConfiguracionesAgenda => Set<ConfiguracionAgenda>();
+    public DbSet<Turno> Turnos => Set<Turno>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -111,6 +115,62 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(p => p.Activa).HasColumnName("activa");
             e.Property(p => p.CreadoEn).HasColumnName("creado_en");
             e.HasIndex(p => new { p.UsuarioId, p.Activa });
+        });
+
+        modelBuilder.Entity<FranjaHoraria>(e =>
+        {
+            e.ToTable("franjas_horarias");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(f => f.UsuarioId).HasColumnName("usuario_id");
+            e.Property(f => f.DiaSemana).HasColumnName("dia_semana");
+            e.Property(f => f.Desde).HasColumnName("hora_desde");
+            e.Property(f => f.Hasta).HasColumnName("hora_hasta");
+            e.HasIndex(f => new { f.UsuarioId, f.DiaSemana });
+        });
+
+        modelBuilder.Entity<Ausencia>(e =>
+        {
+            e.ToTable("ausencias");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(a => a.UsuarioId).HasColumnName("usuario_id");
+            e.Property(a => a.Desde).HasColumnName("desde");
+            e.Property(a => a.Hasta).HasColumnName("hasta");
+            e.Property(a => a.Motivo).HasColumnName("motivo").HasMaxLength(200).IsRequired();
+            e.Property(a => a.CreadoEn).HasColumnName("creado_en");
+            e.HasIndex(a => new { a.UsuarioId, a.Desde });
+        });
+
+        modelBuilder.Entity<ConfiguracionAgenda>(e =>
+        {
+            e.ToTable("configuracion_agenda");
+            e.HasKey(c => c.UsuarioId);
+            e.Property(c => c.UsuarioId).HasColumnName("usuario_id").ValueGeneratedNever();
+            e.Property(c => c.DescansoEntreSesionesMinutos).HasColumnName("descanso_minutos");
+            e.Property(c => c.AnticipacionMinimaHoras).HasColumnName("anticipacion_horas");
+        });
+
+        modelBuilder.Entity<Turno>(e =>
+        {
+            e.ToTable("turnos");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(t => t.ProfesionalId).HasColumnName("profesional_id");
+            e.Property(t => t.PacienteId).HasColumnName("paciente_id");
+            e.Property(t => t.PrestacionId).HasColumnName("prestacion_id");
+            e.Property(t => t.Inicio).HasColumnName("inicio").HasColumnType("timestamp without time zone");
+            e.Property(t => t.Fin).HasColumnName("fin").HasColumnType("timestamp without time zone");
+            e.Property(t => t.DuracionMinutos).HasColumnName("duracion_minutos");
+            e.Property(t => t.Estado).HasColumnName("estado").HasMaxLength(20).IsRequired()
+                .HasConversion(
+                    v => v.ToString().ToLowerInvariant(),
+                    v => Enum.Parse<EstadoTurno>(v, true));
+            e.Property(t => t.CreadoEn).HasColumnName("creado_en");
+            e.Property(t => t.ActualizadoEn).HasColumnName("actualizado_en");
+            e.Ignore(t => t.OcupaHorario);
+            e.HasIndex(t => new { t.ProfesionalId, t.Inicio });
+            e.HasIndex(t => new { t.PacienteId, t.Inicio });
         });
     }
 }

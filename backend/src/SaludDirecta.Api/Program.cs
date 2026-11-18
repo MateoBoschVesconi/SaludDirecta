@@ -5,7 +5,9 @@ using Microsoft.OpenApi.Models;
 using SaludDirecta.Api.Middleware;
 using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Auth;
+using SaludDirecta.Application.Agenda;
 using SaludDirecta.Application.Perfil;
+using SaludDirecta.Application.Turnos;
 using SaludDirecta.Application.Verificacion;
 using SaludDirecta.Infrastructure;
 using SaludDirecta.Infrastructure.Security;
@@ -23,6 +25,10 @@ builder.Services.AddScoped<VerificacionService>();
 // HU4: perfil público, honorarios con historial y prestaciones
 builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<PrestacionService>();
+
+// HU8 y HU9: agenda del profesional, reserva de turnos con control de concurrencia
+builder.Services.AddScoped<AgendaService>();
+builder.Services.AddScoped<TurnoService>();
 
 // --- Autenticación JWT (HU1) ---
 var jwt = builder.Configuration.GetSection(JwtOptions.Seccion).Get<JwtOptions>() ?? new JwtOptions();

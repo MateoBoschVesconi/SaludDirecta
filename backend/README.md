@@ -6,7 +6,7 @@ Clean Architecture: **Domain → Application → Infrastructure → Api**.
 backend/
 ├─ src/
 │  ├─ SaludDirecta.Domain          Entidades y reglas de negocio (sin dependencias)
-│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService, PerfilService, PrestacionService)
+│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService, PerfilService, PrestacionService, AgendaService, TurnoService)
 │  ├─ SaludDirecta.Infrastructure  EF Core + PostgreSQL, hash PBKDF2, JWT, adapter del registro oficial
 │  └─ SaludDirecta.Api             Controllers, JWT, CORS, Swagger
 ├─ tests/SaludDirecta.Tests        xUnit
@@ -107,13 +107,52 @@ Notas:
 - El honorario tiene su propio endpoint a propósito: así el historial y la auditoría no dependen de cómo se arme el formulario del frontend. Al guardar la pantalla de perfil, el frontend llama a `PUT me/perfil` y, si cambió el precio, a `PUT me/perfil/honorario`.
 - Las prestaciones se dan de baja de forma lógica (`activa = false`) para no romper turnos futuros que las usen (HU8 y HU9).
 
+### HU8 – Agenda y disponibilidad / HU9 – Reserva de turnos
+
+**Agenda del profesional** (JWT con rol `profesional`):
+
+| Endpoint | Descripción |
+| :--- | :--- |
+| `GET /api/profesionales/me/agenda` | Franjas semanales y ajustes de la agenda. |
+| `PUT /api/profesionales/me/agenda` | Reemplaza toda la disponibilidad. Cuerpo: `franjas` (`diaSemana`, `desde`, `hasta`), `descansoEntreSesionesMinutos`, `anticipacionMinimaHoras`. |
+| `GET /api/profesionales/me/ausencias` | Períodos de ausencia. |
+| `POST /api/profesionales/me/ausencias` | Alta de ausencia (`desde`, `hasta`, `motivo`). Responde 201. |
+| `DELETE /api/profesionales/me/ausencias/{id}` | Elimina una ausencia propia (204). |
+| `GET /api/profesionales/{id}/horarios-disponibles?fecha=2026-11-23&prestacionId=...` | **Público.** Horarios libres de un profesional publicado. |
+
+Formatos: `diaSemana` va de 0 (domingo) a 6 (sábado), igual que `getDay()` de JavaScript. Las horas van como `"HH:mm"` y las fechas como `"yyyy-MM-dd"`. Las horas son las del consultorio (Argentina, UTC-3).
+Una jornada partida (mañana y tarde) se carga como dos franjas del mismo día.
+
+Reglas (criterios del plan): solo se ofrecen horarios dentro de las franjas; las ausencias bloquean la reserva; la duración del turno es la de la prestación elegida (o la duración de sesión del perfil si no se elige ninguna). Los horarios se arman cada `duración + descanso` minutos desde el inicio de cada franja, y no se ofrece nada anterior a ahora + la anticipación mínima.
+
+**Turnos** (JWT):
+
+| Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- |
+| `POST /api/turnos` | `paciente` | Reserva. Cuerpo: `profesionalId`, `fecha`, `hora`, `prestacionId` (opcional). Responde 201 con el turno en estado `solicitado`, o **409** si el horario ya fue tomado. |
+| `GET /api/turnos/me` | paciente o profesional | Mis turnos, ordenados por fecha. |
+| `GET /api/turnos/{id}` | paciente o profesional del turno | Estado y datos del turno. Para cualquier otro usuario responde 404. |
+| `POST /api/turnos/{id}/estado` | paciente o profesional del turno | Cuerpo: `{ "estado": "confirmado" }`. El paciente solo puede `cancelado`. |
+
+Estados (RF-11): `solicitado` → `confirmado` o `cancelado`; `confirmado` → `cumplido`, `ausente` o `cancelado`. `cumplido`, `ausente` y `cancelado` son finales. Una transición inválida responde 400.
+
+**Control de concurrencia.** La garantía final está en la base de datos: `sql/004_agenda_turnos.sql` crea una restricción de exclusión (`ex_turnos_sin_solapamiento`) que impide que dos turnos activos (solicitado o confirmado) del mismo profesional se superpongan. Si dos solicitudes llegan en el mismo instante, PostgreSQL deja pasar una y rechaza la otra, y la API la convierte en un 409. Cancelar un turno libera el horario.
+
+Prueba de carga (100 solicitudes simultáneas al mismo horario; esperado: un 201 y 99 respuestas 409), con la API corriendo:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\prueba-carga-turnos.ps1 -Token "<token de un paciente>" -ProfesionalId "<id del profesional>" -Fecha "2026-11-23" -Hora "09:00"
+```
+Además hay un test automático (`Cien_solicitudes_simultaneas_para_el_mismo_horario_dejan_un_solo_turno`) que comprueba que la lógica de reserva deja un solo turno.
+
+Pendiente: los recordatorios y notificaciones (HU10), el cobro (HU11) y la pantalla de "Mis turnos" conectada a esta API.
+
 ## Puesta en marcha (Windows / PowerShell)
 
 Requisitos: **.NET 8 SDK** (`dotnet --version` debe empezar con 8) y una base PostgreSQL.
 
 ### 1. Base de datos
 
-Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql` y `003_perfiles.sql`
+Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql`, `003_perfiles.sql` y `004_agenda_turnos.sql`
 (en pgAdmin: clic derecho en la base → Query Tool → abrir archivo → F5).
 
 **A) PostgreSQL instalado en tu PC.** `appsettings.Development.json` espera usuario `postgres`,
@@ -146,7 +185,7 @@ dotnet test
 ## Notas de seguridad
 - `appsettings.Development.json` trae una clave JWT **solo para desarrollo**. En producción definí `Jwt__Key`
   (mínimo 32 caracteres) y `ConnectionStrings__Default` como variables de entorno.
-- Las tablas `usuarios`, `verificaciones_matricula`, `auditoria`, `perfiles_profesionales`, `historial_honorarios` y `prestaciones` tienen RLS activado sin políticas:
+- Las tablas `usuarios`, `verificaciones_matricula`, `auditoria`, `perfiles_profesionales`, `historial_honorarios`, `prestaciones`, `franjas_horarias`, `configuracion_agenda`, `ausencias` y `turnos` tienen RLS activado sin políticas:
   la clave `anon` del frontend no puede leerlas.
 - Las contraseñas se guardan con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y sal aleatoria.
 - No se guardan datos clínicos (RNF-02).
