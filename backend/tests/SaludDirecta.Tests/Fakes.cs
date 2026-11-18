@@ -218,3 +218,52 @@ internal sealed class TurnoRepositorioEnMemoria : ITurnoRepository
             return Task.FromResult<IReadOnlyList<Turno>>(_turnos.Where(t => t.ProfesionalId == profesionalId).ToList());
     }
 }
+
+internal sealed class NotificacionRepositorioEnMemoria : INotificacionRepository
+{
+    public List<Notificacion> Todas { get; } = [];
+
+    public Task AgregarAsync(IReadOnlyList<Notificacion> notificaciones, CancellationToken ct)
+    {
+        Todas.AddRange(notificaciones);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<Notificacion>> ListarPorEnviarAsync(DateTime ahoraUtc, int maximo, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Notificacion>>(
+            Todas.Where(n => n.DebeEnviarse(ahoraUtc)).OrderBy(n => n.ProgramadaPara).Take(maximo).ToList());
+
+    public Task<IReadOnlyList<Notificacion>> ListarPendientesDeTurnoAsync(Guid turnoId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Notificacion>>(
+            Todas.Where(n => n.TurnoId == turnoId && n.Estado == EstadoNotificacion.Pendiente).ToList());
+
+    public Task<IReadOnlyList<Notificacion>> ListarDeUsuarioAsync(Guid usuarioId, int maximo, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Notificacion>>(
+            Todas.Where(n => n.UsuarioId == usuarioId && n.Estado != EstadoNotificacion.Cancelada)
+                 .OrderByDescending(n => n.CreadoEn).Take(maximo).ToList());
+
+    public Task<Notificacion?> ObtenerAsync(Guid id, CancellationToken ct) =>
+        Task.FromResult(Todas.FirstOrDefault(n => n.Id == id));
+
+    public Task GuardarCambiosAsync(CancellationToken ct) => Task.CompletedTask;
+}
+
+/// <summary>Canal de envío de prueba: anota lo que "envía" y puede fallar para ciertos asuntos.</summary>
+internal sealed class EnviadorFalso : IEnviadorNotificaciones
+{
+    public List<(Notificacion Notificacion, Usuario Destinatario)> Enviadas { get; } = [];
+    public Func<Notificacion, bool> DebeFallar { get; set; } = _ => false;
+
+    public Task EnviarAsync(Notificacion notificacion, Usuario destinatario, CancellationToken ct)
+    {
+        if (DebeFallar(notificacion)) throw new InvalidOperationException("El canal de envío no responde.");
+        Enviadas.Add((notificacion, destinatario));
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class ObservadorQueFalla : ITurnoObservador
+{
+    public Task TurnoSolicitadoAsync(Turno turno, CancellationToken ct) => throw new InvalidOperationException("falla");
+    public Task EstadoCambiadoAsync(Turno turno, Guid actorId, CancellationToken ct) => throw new InvalidOperationException("falla");
+}

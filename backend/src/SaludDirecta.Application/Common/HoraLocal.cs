@@ -9,4 +9,8 @@ public static class HoraLocal
 
     public static DateTime Ahora(TimeProvider reloj) =>
         DateTime.SpecifyKind(reloj.GetUtcNow().UtcDateTime.AddHours(DesfaseUtcHoras), DateTimeKind.Unspecified);
+
+    /// <summary>Pasa una hora local del consultorio a UTC.</summary>
+    public static DateTime AUtc(DateTime local) =>
+        DateTime.SpecifyKind(local.AddHours(-DesfaseUtcHoras), DateTimeKind.Utc);
 }

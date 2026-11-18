@@ -6,7 +6,7 @@ Clean Architecture: **Domain → Application → Infrastructure → Api**.
 backend/
 ├─ src/
 │  ├─ SaludDirecta.Domain          Entidades y reglas de negocio (sin dependencias)
-│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService, PerfilService, PrestacionService, AgendaService, TurnoService)
+│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService, PerfilService, PrestacionService, AgendaService, TurnoService, NotificacionService)
 │  ├─ SaludDirecta.Infrastructure  EF Core + PostgreSQL, hash PBKDF2, JWT, adapter del registro oficial
 │  └─ SaludDirecta.Api             Controllers, JWT, CORS, Swagger
 ├─ tests/SaludDirecta.Tests        xUnit
@@ -144,7 +144,31 @@ powershell -ExecutionPolicy Bypass -File .\scripts\prueba-carga-turnos.ps1 -Toke
 ```
 Además hay un test automático (`Cien_solicitudes_simultaneas_para_el_mismo_horario_dejan_un_solo_turno`) que comprueba que la lógica de reserva deja un solo turno.
 
-Pendiente: los recordatorios y notificaciones (HU10), el cobro (HU11) y la pantalla de "Mis turnos" conectada a esta API.
+Pendiente: el cobro (HU11) y la pantalla de "Mis turnos" conectada a esta API.
+
+### HU10 – Notificaciones y recordatorios
+
+El sistema avisa a las dos partes cuando algo pasa con un turno, y manda un recordatorio automático antes de la hora.
+
+| Cuándo | Quién recibe el aviso |
+| :--- | :--- |
+| El paciente reserva (`solicitado`) | El profesional ("Nuevo turno solicitado") y el paciente ("Solicitud registrada") |
+| El profesional confirma (`confirmado`) | El paciente ("Turno confirmado"). Además se programan **dos recordatorios**, uno para cada uno, **24 horas antes** del turno. Si el turno es dentro de menos de 24 horas, el recordatorio sale enseguida |
+| Se cancela (`cancelado`) | La otra parte (si cancela el paciente, el profesional; y al revés). Se cancelan los recordatorios que quedaban pendientes |
+| Se marca `cumplido` o `ausente` | No se avisa, pero se cancelan los recordatorios pendientes |
+
+**Bandeja del usuario** (JWT, paciente o profesional):
+
+| Endpoint | Descripción |
+| :--- | :--- |
+| `GET /api/notificaciones/me` | Mis notificaciones, de la más nueva a la más vieja (hasta 100, sin las canceladas). Cada una trae `tipo`, `asunto`, `mensaje`, `estado`, `leida`, `programadaPara` y `enviadaEn`. |
+| `POST /api/notificaciones/{id}/leida` | Marca una notificación propia como leída. Si es de otra persona responde 404. |
+
+**Cómo está armado** (Observer + cola de envío):
+- `TurnoService` avisa a sus observadores (`ITurnoObservador`) cada vez que se solicita un turno o cambia de estado. `NotificadorDeTurnos` es el observador que crea las notificaciones, así reservar un turno no depende de cómo se notifica. Si un aviso falla, el turno igual queda guardado.
+- Las notificaciones se guardan en la tabla `notificaciones`, que funciona como bandeja y como cola. Un servicio en segundo plano (`ServicioDeRecordatorios`) corre dentro de la API, cada 60 segundos busca las pendientes cuyo momento ya llegó y las manda. Si una falla se reintenta en la vuelta siguiente, hasta 3 veces; después queda `fallida` y las demás no se frenan.
+- El canal de salida es un Adapter (`IEnviadorNotificaciones`). Hoy está el simulado (`EnviadorEnRegistro`), que **muestra el aviso en la consola de la API** en lugar de mandar un mail. Para mandar mails o mensajes reales se escribe otra clase que implemente esa interfaz y se registra en `DependencyInjection.cs`, sin tocar la lógica de turnos.
+- El intervalo se puede cambiar con `Notificaciones:IntervaloSegundos` (entre 5 y 3600, por defecto 60).
 
 ## Puesta en marcha (Windows / PowerShell)
 
@@ -152,7 +176,7 @@ Requisitos: **.NET 8 SDK** (`dotnet --version` debe empezar con 8) y una base Po
 
 ### 1. Base de datos
 
-Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql`, `003_perfiles.sql` y `004_agenda_turnos.sql`
+Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql`, `003_perfiles.sql`, `004_agenda_turnos.sql` y `005_notificaciones.sql`
 (en pgAdmin: clic derecho en la base → Query Tool → abrir archivo → F5).
 
 **A) PostgreSQL instalado en tu PC.** `appsettings.Development.json` espera usuario `postgres`,
@@ -185,7 +209,7 @@ dotnet test
 ## Notas de seguridad
 - `appsettings.Development.json` trae una clave JWT **solo para desarrollo**. En producción definí `Jwt__Key`
   (mínimo 32 caracteres) y `ConnectionStrings__Default` como variables de entorno.
-- Las tablas `usuarios`, `verificaciones_matricula`, `auditoria`, `perfiles_profesionales`, `historial_honorarios`, `prestaciones`, `franjas_horarias`, `configuracion_agenda`, `ausencias` y `turnos` tienen RLS activado sin políticas:
+- Las tablas `usuarios`, `verificaciones_matricula`, `auditoria`, `perfiles_profesionales`, `historial_honorarios`, `prestaciones`, `franjas_horarias`, `configuracion_agenda`, `ausencias`, `turnos` y `notificaciones` tienen RLS activado sin políticas:
   la clave `anon` del frontend no puede leerlas.
 - Las contraseñas se guardan con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y sal aleatoria.
 - No se guardan datos clínicos (RNF-02).

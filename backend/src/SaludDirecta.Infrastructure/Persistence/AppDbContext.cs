@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Ausencia> Ausencias => Set<Ausencia>();
     public DbSet<ConfiguracionAgenda> ConfiguracionesAgenda => Set<ConfiguracionAgenda>();
     public DbSet<Turno> Turnos => Set<Turno>();
+    public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -171,6 +172,33 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Ignore(t => t.OcupaHorario);
             e.HasIndex(t => new { t.ProfesionalId, t.Inicio });
             e.HasIndex(t => new { t.PacienteId, t.Inicio });
+        });
+
+        modelBuilder.Entity<Notificacion>(e =>
+        {
+            e.ToTable("notificaciones");
+            e.HasKey(n => n.Id);
+            e.Property(n => n.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(n => n.UsuarioId).HasColumnName("usuario_id");
+            e.Property(n => n.TurnoId).HasColumnName("turno_id");
+            e.Property(n => n.Tipo).HasColumnName("tipo").HasMaxLength(30).IsRequired()
+                .HasConversion(
+                    v => v.ToString().ToLowerInvariant(),
+                    v => Enum.Parse<TipoNotificacion>(v, true));
+            e.Property(n => n.Asunto).HasColumnName("asunto").HasMaxLength(150).IsRequired();
+            e.Property(n => n.Mensaje).HasColumnName("mensaje").HasMaxLength(1000).IsRequired();
+            e.Property(n => n.Estado).HasColumnName("estado").HasMaxLength(20).IsRequired()
+                .HasConversion(
+                    v => v.ToString().ToLowerInvariant(),
+                    v => Enum.Parse<EstadoNotificacion>(v, true));
+            e.Property(n => n.ProgramadaPara).HasColumnName("programada_para");
+            e.Property(n => n.Intentos).HasColumnName("intentos");
+            e.Property(n => n.EnviadaEn).HasColumnName("enviada_en");
+            e.Property(n => n.LeidaEn).HasColumnName("leida_en");
+            e.Property(n => n.CreadoEn).HasColumnName("creado_en");
+            e.HasIndex(n => new { n.UsuarioId, n.CreadoEn });
+            e.HasIndex(n => new { n.Estado, n.ProgramadaPara });
+            e.HasIndex(n => n.TurnoId);
         });
     }
 }

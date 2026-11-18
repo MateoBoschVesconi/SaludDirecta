@@ -2,10 +2,12 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SaludDirecta.Api.Background;
 using SaludDirecta.Api.Middleware;
 using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Auth;
 using SaludDirecta.Application.Agenda;
+using SaludDirecta.Application.Notificaciones;
 using SaludDirecta.Application.Perfil;
 using SaludDirecta.Application.Turnos;
 using SaludDirecta.Application.Verificacion;
@@ -29,6 +31,12 @@ builder.Services.AddScoped<PrestacionService>();
 // HU8 y HU9: agenda del profesional, reserva de turnos con control de concurrencia
 builder.Services.AddScoped<AgendaService>();
 builder.Services.AddScoped<TurnoService>();
+
+// HU10: notificaciones y recordatorios. El notificador es un observador de los turnos
+// (el servicio de turnos le avisa lo que pasa) y el servicio de fondo envía las pendientes.
+builder.Services.AddScoped<ITurnoObservador, NotificadorDeTurnos>();
+builder.Services.AddScoped<NotificacionService>();
+builder.Services.AddHostedService<ServicioDeRecordatorios>();
 
 // --- Autenticación JWT (HU1) ---
 var jwt = builder.Configuration.GetSection(JwtOptions.Seccion).Get<JwtOptions>() ?? new JwtOptions();

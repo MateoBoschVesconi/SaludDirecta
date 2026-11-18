@@ -1,5 +1,7 @@
 using SaludDirecta.Application.Agenda;
+using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Common;
+using SaludDirecta.Application.Notificaciones;
 using SaludDirecta.Application.Perfil;
 using SaludDirecta.Application.Turnos;
 using SaludDirecta.Domain.Entities;
@@ -201,11 +203,14 @@ internal class EscenarioAgenda
     public VerificacionRepositorioEnMemoria Verificaciones { get; } = new();
     public AgendaRepositorioEnMemoria AgendaRepo { get; } = new();
     public TurnoRepositorioEnMemoria TurnosRepo { get; } = new();
+    public NotificacionRepositorioEnMemoria Notificaciones { get; } = new();
+    public EnviadorFalso Enviador { get; } = new();
 
     public PerfilService Perfil { get; }
     public PrestacionService PrestacionesServicio { get; }
     public AgendaService Agenda { get; }
     public TurnoService Turnos { get; }
+    public NotificacionService Bandeja { get; }
 
     public EscenarioAgenda()
     {
@@ -213,8 +218,14 @@ internal class EscenarioAgenda
         Perfil = new PerfilService(Usuarios, Perfiles, Prestaciones, Verificaciones, reloj);
         PrestacionesServicio = new PrestacionService(Prestaciones, reloj);
         Agenda = new AgendaService(AgendaRepo, TurnosRepo, Usuarios, Perfiles, Prestaciones, reloj);
-        Turnos = new TurnoService(TurnosRepo, Agenda, Usuarios, reloj);
+        Turnos = new TurnoService(TurnosRepo, Agenda, Usuarios, reloj,
+            [new NotificadorDeTurnos(Notificaciones, Usuarios, reloj)]);
+        Bandeja = EnvioEn(AhoraUtc);
     }
+
+    /// <summary>El servicio de notificaciones visto desde otro momento, para probar los envíos programados.</summary>
+    public NotificacionService EnvioEn(DateTimeOffset momento) =>
+        new(Notificaciones, Usuarios, Enviador, new RelojFijo(momento));
 
     public async Task<Usuario> ProfesionalAsync(bool publicado = true, int duracion = 45, bool conAgenda = true)
     {
