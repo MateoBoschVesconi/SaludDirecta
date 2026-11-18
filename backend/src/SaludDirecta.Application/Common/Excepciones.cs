@@ -7,6 +7,9 @@ public class ValidacionException(string mensaje) : Exception(mensaje);
 public class EmailDuplicadoException()
     : Exception("Ya existe una cuenta registrada con ese correo electrónico.");
 
+/// <summary>El recurso pedido no existe, no es del usuario o no está publicado (HTTP 404).</summary>
+public class NoEncontradoException(string mensaje) : Exception(mensaje);
+
 /// <summary>Credenciales incorrectas o sesión inválida (HTTP 401).</summary>
 public class CredencialesInvalidasException(string mensaje = "Correo o contraseña incorrectos.")
     : Exception(mensaje);

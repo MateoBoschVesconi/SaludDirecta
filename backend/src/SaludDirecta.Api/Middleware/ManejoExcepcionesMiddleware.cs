@@ -20,6 +20,10 @@ public sealed class ManejoExcepcionesMiddleware(RequestDelegate siguiente, ILogg
         {
             await Responder(contexto, StatusCodes.Status401Unauthorized, "No autorizado", ex.Message);
         }
+        catch (NoEncontradoException ex)
+        {
+            await Responder(contexto, StatusCodes.Status404NotFound, "No encontrado", ex.Message);
+        }
         catch (EmailDuplicadoException ex)
         {
             await Responder(contexto, StatusCodes.Status409Conflict, "Conflicto", ex.Message);
