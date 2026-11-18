@@ -6,15 +6,17 @@ Clean Architecture: **Domain → Application → Infrastructure → Api**.
 backend/
 ├─ src/
 │  ├─ SaludDirecta.Domain          Entidades y reglas de negocio (sin dependencias)
-│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService)
-│  ├─ SaludDirecta.Infrastructure  EF Core + PostgreSQL, hash PBKDF2, emisión de JWT
+│  ├─ SaludDirecta.Application     Casos de uso e interfaces (AuthService, VerificacionService)
+│  ├─ SaludDirecta.Infrastructure  EF Core + PostgreSQL, hash PBKDF2, JWT, adapter del registro oficial
 │  └─ SaludDirecta.Api             Controllers, JWT, CORS, Swagger
 ├─ tests/SaludDirecta.Tests        xUnit
-├─ sql/001_usuarios.sql            Tabla `usuarios`
+├─ sql/                            Scripts de base de datos (ejecutar en orden)
 └─ docker-compose.yml              Postgres local (opcional)
 ```
 
-## Estado actual: HU1 (registro y login)
+## Endpoints
+
+### HU1 – Registro y login
 
 | Endpoint | Acceso | Descripción |
 | :--- | :--- | :--- |
@@ -39,22 +41,60 @@ Ejemplo de registro:
 }
 ```
 
+Un profesional agrega `"rol": "profesional"`, `profesion`, `matricula` y `jurisdiccion`.
+
+### HU2 – Verificación de matrícula
+
+| Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- |
+| `POST /api/profesionales/me/verificacion` | JWT, rol `profesional` | Verifica la matrícula declarada al registrarse contra el registro oficial. |
+| `GET /api/profesionales/me/verificacion` | JWT, rol `profesional` | Estado de la última verificación. |
+| `GET /api/profesionales/{id}/distintivo` | público | `{ verificado, verificadaEn }` para mostrar el distintivo en el perfil. |
+
+Respuesta de la verificación: `{ estado, distintivo, motivo, fuente, verificadaEn }`.
+
+| `estado` | Cuándo | ¿Distintivo? |
+| :--- | :--- | :--- |
+| `verificada` | Habilitada en el registro y con profesión y jurisdicción coincidentes | Sí |
+| `revision_manual` | No se encontró, el servicio no respondió, o no coincide la profesión/jurisdicción | No |
+| `rechazada` | El registro la informa como no habilitada | No |
+| `sin_verificar` | (solo en el `GET`) todavía no se pidió verificación | No |
+
+Cómo funciona por dentro:
+- **Adapter:** la aplicación solo conoce la interfaz `IRegistroProfesionales`. Hoy se usa
+  `RegistroProfesionalesSimulado`, que lee un padrón de prueba desde `appsettings.Development.json`
+  (sección `Refeps:PadronSimulado`). Para usar el servicio real de REFEPS/SISA hay que escribir una clase
+  que implemente esa interfaz y cambiar una línea en `Infrastructure/DependencyInjection.cs`.
+- **Pasos encadenados:** consultar el registro → comprobar habilitación → comprobar coincidencia
+  (`CadenaVerificacion`). El primer paso que concluye decide el resultado.
+- **Auditoría:** cada verificación guarda un registro en `verificaciones_matricula` y un evento en `auditoria`,
+  en una sola operación.
+- La comparación ignora mayúsculas y tildes, y reconoce a la Ciudad de Buenos Aires como CABA.
+
+Padrón de prueba (Swagger): `MP 3412` Kinesiología/Chaco (habilitada), `MP 2210` Nutrición/Chaco (habilitada),
+`MP 1875` Psicología/Chaco (**no** habilitada), `MP 5000` Nutrición/Corrientes (habilitada).
+La matrícula `SIN-SERVICIO` simula que el registro oficial está caído. Cualquier otra no se encuentra.
+
+**Pendiente de HU2:** el paso de "revisión manual" solo marca el caso; todavía no hay un rol de administrador
+ni una pantalla para resolverlo. Tampoco está el cliente real de REFEPS/SISA (necesita credenciales).
+
 ## Puesta en marcha (Windows / PowerShell)
 
 Requisitos: **.NET 8 SDK** (`dotnet --version` debe empezar con 8) y una base PostgreSQL.
 
-### 1. Base de datos (elegí una)
+### 1. Base de datos
 
-**A) Docker (local):**
-```powershell
-cd backend
-docker compose up -d
-```
-Crea la base `saluddirecta` y ejecuta `sql/001_usuarios.sql` automáticamente.
-`appsettings.Development.json` ya apunta a ese Postgres.
+Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql` y después `002_verificaciones.sql`
+(en pgAdmin: clic derecho en la base → Query Tool → abrir archivo → F5).
 
-**B) Supabase:** ejecutá `sql/001_usuarios.sql` en *SQL Editor* y guardá la cadena de conexión
-(Project Settings → Database → Connection string) como secreto, **sin commitearla**:
+**A) PostgreSQL instalado en tu PC.** `appsettings.Development.json` espera usuario `postgres`,
+contraseña `postgres` y base `saluddirecta`.
+
+**B) Docker:** `docker compose up -d` dentro de `backend`. Ejecuta los scripts automáticamente,
+pero solo la primera vez que se crea el volumen.
+
+**C) Supabase:** ejecutá los scripts en *SQL Editor* y guardá la cadena de conexión como secreto,
+**sin commitearla**:
 ```powershell
 cd backend\src\SaludDirecta.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Host=db.XXXX.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true"
@@ -77,10 +117,11 @@ dotnet test
 ## Notas de seguridad
 - `appsettings.Development.json` trae una clave JWT **solo para desarrollo**. En producción definí `Jwt__Key`
   (mínimo 32 caracteres) y `ConnectionStrings__Default` como variables de entorno.
-- La tabla `usuarios` tiene RLS activado sin políticas: la clave `anon` del frontend no puede leer los hashes.
+- Las tablas `usuarios`, `verificaciones_matricula` y `auditoria` tienen RLS activado sin políticas:
+  la clave `anon` del frontend no puede leerlas.
 - Las contraseñas se guardan con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y sal aleatoria.
 - No se guardan datos clínicos (RNF-02).
 
 ## Próximos pasos del plan
-HU14 (auditoría + supresión de datos), HU2 (verificación de matrícula REFEPS tras un Adapter),
-HU9 (motor de turnos con control de concurrencia).
+HU14 (middleware de auditoría general y supresión de datos), HU9 (motor de turnos con control de concurrencia),
+HU11 (pagos con Mercado Pago).

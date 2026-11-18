@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SaludDirecta.Api.Middleware;
+using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Auth;
+using SaludDirecta.Application.Verificacion;
 using SaludDirecta.Infrastructure;
 using SaludDirecta.Infrastructure.Security;
 
@@ -12,6 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 // --- Servicios de la aplicación e infraestructura ---
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
+
+// HU2: verificación de matrícula (cadena de pasos sobre el Adapter del registro oficial)
+builder.Services.AddScoped(sp => CadenaVerificacion.Estandar(sp.GetRequiredService<IRegistroProfesionales>()));
+builder.Services.AddScoped<VerificacionService>();
 
 // --- Autenticación JWT (HU1) ---
 var jwt = builder.Configuration.GetSection(JwtOptions.Seccion).Get<JwtOptions>() ?? new JwtOptions();
