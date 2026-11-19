@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Clock, FileText, CheckCircle2, Calendar, ArrowRight, XCircle, AlertTriangle } from 'lucide-react';
-import { updateAppointmentStatus } from '../../api/appointmentService';
+import { updateAppointmentStatus, fetchMyAppointments } from '../../api/appointmentService';
 
 const DEFAULT_APPOINTMENTS = [
   {
@@ -36,6 +36,19 @@ export default function MyAppointmentsPage() {
   });
 
   const [notification, setNotification] = useState('');
+
+  // Sincronizar con el Backend .NET 8 (/api/turnos/me)
+  useEffect(() => {
+    let isMounted = true;
+    fetchMyAppointments().then((data) => {
+      if (isMounted && data && data.length > 0) {
+        setAppointments(data);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Máquina de estados visual (Criterio 2 - HU9)
   const getStatusBadge = (status) => {

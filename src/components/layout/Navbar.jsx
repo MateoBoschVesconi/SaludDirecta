@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Plus, User, LogOut, Calendar, Stethoscope } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, isProfessional } = useAuth();
@@ -62,6 +63,9 @@ export default function Navbar() {
                   Mis Turnos
                 </Link>
               )}
+
+              {/* Campana de Notificaciones y Recordatorios (HU10) */}
+              <NotificationBell />
 
               <span className="hidden sm:inline-flex items-center text-xs font-medium text-text-muted bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
                 <User className="w-3.5 h-3.5 mr-1" aria-hidden="true" />

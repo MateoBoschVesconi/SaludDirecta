@@ -14,6 +14,7 @@ import {
   Info
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { profesionalService } from '../../api/profesionalService';
 
 const DEFAULT_PROFILE = {
   profession: 'Kinesiología y Fisiatría',
@@ -52,6 +53,7 @@ export default function LicenseAndProfilePage() {
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -61,7 +63,7 @@ export default function LicenseAndProfilePage() {
     setSavedSuccess(false);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -78,6 +80,30 @@ export default function LicenseAndProfilePage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
+    }
+
+    try {
+      setIsSaving(true);
+      // 1. Persistir en Backend .NET 8 (HU4 - Guardar perfil y honorario con auditoría)
+      await profesionalService.guardarPerfil({
+        especialidad: formData.specialty,
+        descripcion: formData.description,
+        direccion: formData.address,
+        ciudad: formData.city,
+        telefono: formData.phone,
+        duracionSesionMinutos: formData.sessionDurationMinutes,
+        tieneRampa: formData.hasRamp,
+        tieneAscensor: formData.hasElevator,
+        tieneBanoAdaptado: formData.hasAdaptedBathroom,
+      });
+
+      if (formData.consultationPrice) {
+        await profesionalService.cambiarHonorario(formData.consultationPrice);
+      }
+    } catch {
+      // Si la API no está iniciada, continúa guardando localmente
+    } finally {
+      setIsSaving(false);
     }
 
     localStorage.setItem('salud_directa_pro_profile', JSON.stringify(formData));
@@ -428,10 +454,11 @@ export default function LicenseAndProfilePage() {
           {/* Botón de Guardado Principal */}
           <button
             type="submit"
+            disabled={isSaving}
             className="btn-primary text-base py-3.5 shadow-md flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" aria-hidden="true" />
-            Guardar y Actualizar Perfil Público
+            {isSaving ? 'Guardando en Servidor...' : 'Guardar y Actualizar Perfil Público'}
           </button>
         </form>
 

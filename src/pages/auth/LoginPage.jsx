@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, Stethoscope, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../api/authService';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -15,27 +16,45 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Por favor completá tu correo y contraseña.');
       return;
     }
 
-    // Simulación de login exitoso con JWT
-    const mockUser = {
-      id: role === 'profesional' ? 'pro-1' : 'pac-1',
-      nombre: role === 'profesional' ? 'Lic. Mateo Gómez' : 'Federico Zeniquel',
-      email,
-      rol: role,
-    };
-    const mockJwt = 'mock_jwt_token_' + Date.now();
+    try {
+      setIsSubmitting(true);
+      setError('');
+      // 1. Intentar autenticación con el Backend .NET 8 (HU1)
+      const data = await authService.login({ email, password });
+      login(data.user, data.token);
 
-    login(mockUser, mockJwt);
+      const redirectPath = location.state?.from?.pathname || (data.user.rol === 'profesional' ? '/profesional/dashboard' : '/');
+      navigate(redirectPath, { replace: true });
+    } catch (err) {
+      if (err.response?.status === 400 || err.response?.status === 401) {
+        setError(err.response.data?.mensaje || err.response.data?.title || 'Credenciales inválidas. Verificá tu correo y contraseña.');
+      } else {
+        // 2. Si la API no está encendida aún, fallback al modo desarrollo ágil
+        console.warn('Backend API no disponible, iniciando en modo desarrollo:', err.message);
+        const mockUser = {
+          id: role === 'profesional' ? 'pro-1' : 'pac-1',
+          nombre: role === 'profesional' ? 'Lic. Mateo Gómez' : 'Federico Zeniquel',
+          email,
+          rol: role,
+        };
+        const mockJwt = 'mock_jwt_token_' + Date.now();
+        login(mockUser, mockJwt);
 
-    const redirectPath = location.state?.from?.pathname || (role === 'profesional' ? '/profesional/dashboard' : '/');
-    navigate(redirectPath, { replace: true });
+        const redirectPath = location.state?.from?.pathname || (role === 'profesional' ? '/profesional/dashboard' : '/');
+        navigate(redirectPath, { replace: true });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickDemoLogin = (selectedRole) => {
@@ -131,8 +150,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary mt-2">
-            Ingresar
+          <button type="submit" disabled={isSubmitting} className="btn-primary mt-2">
+            {isSubmitting ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 

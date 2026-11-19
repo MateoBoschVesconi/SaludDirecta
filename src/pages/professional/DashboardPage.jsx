@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, Users, DollarSign, UserX, Download, CheckCircle, Clock, AlertTriangle, XCircle, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getLocalAppointments, updateAppointmentStatus, saveLocalAppointments } from '../../api/appointmentService';
+import { getLocalAppointments, updateAppointmentStatus, saveLocalAppointments, fetchMyAppointments } from '../../api/appointmentService';
 
 const SEED_APPOINTMENTS = [
   {
@@ -59,6 +59,19 @@ export default function DashboardPage() {
     saveLocalAppointments(SEED_APPOINTMENTS);
     return SEED_APPOINTMENTS;
   });
+
+  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me)
+  useEffect(() => {
+    let isMounted = true;
+    fetchMyAppointments().then((data) => {
+      if (isMounted && data && data.length > 0) {
+        setAppointments(data);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
