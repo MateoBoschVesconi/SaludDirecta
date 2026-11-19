@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Clock, FileText, CheckCircle2, Calendar, ArrowRight, XCircle, AlertTriangle } from 'lucide-react';
 import { updateAppointmentStatus, fetchMyAppointments } from '../../api/appointmentService';
+import { getReceiptByPaymentId, recordAuditLog, createFallbackReceipt } from '../../api/paymentService';
+import PaymentReceiptModal from '../../components/common/PaymentReceiptModal';
 
 const DEFAULT_APPOINTMENTS = [
   {
@@ -36,6 +38,7 @@ export default function MyAppointmentsPage() {
   });
 
   const [notification, setNotification] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   // Sincronizar con el Backend .NET 8 (/api/turnos/me)
   useEffect(() => {
@@ -49,6 +52,17 @@ export default function MyAppointmentsPage() {
       isMounted = false;
     };
   }, []);
+
+  const handleViewReceipt = (appt) => {
+    const existing = getReceiptByPaymentId(appt.paymentId);
+    if (existing) {
+      setSelectedReceipt(existing);
+      return;
+    }
+
+    // Si no está persistido con anterioridad, generar comprobante oficial estructurado
+    setSelectedReceipt(createFallbackReceipt(appt));
+  };
 
   // Máquina de estados visual (Criterio 2 - HU9)
   const getStatusBadge = (status) => {
@@ -88,20 +102,42 @@ export default function MyAppointmentsPage() {
     }
   };
 
+  // Cancelación con verificación de políticas de reintegro (Criterio 3 - HU11)
   const handleCancelAppointment = async (appt) => {
     if (appt.status !== 'confirmado' && appt.status !== 'solicitado') {
       alert('Este turno no puede ser cancelado en su estado actual.');
       return;
     }
 
-    if (confirm(`¿Estás seguro de que deseás cancelar el turno del ${appt.date} a las ${appt.time}? Se liberará el horario inmediatamente.`)) {
+    const apptDateTime = new Date(`${appt.date}T${(appt.time || '09:00').replace(' hs', '').padStart(5, '0')}:00`);
+    const hoursRemaining = (apptDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const isEligibleForRefund = hoursRemaining >= 24;
+
+    const confirmMessage = isEligibleForRefund
+      ? `¿Estás seguro de que deseás cancelar el turno del ${appt.date} a las ${appt.time}?\n\nAl cancelar con más de 24 hs de anticipación (${Math.max(1, Math.round(hoursRemaining))} hs restantes), se procesará el REINTEGRO DEL 100% del pago por Mercado Pago y se liberará el horario inmediatamente.`
+      : `¿Estás seguro de que deseás cancelar el turno del ${appt.date} a las ${appt.time}?\n\nAtención: restan menos de 24 hs (${Math.max(0, Math.round(hoursRemaining))} hs). La seña o importe abonado queda retenido según las políticas del profesional, pero se liberará el cupo en la agenda médica.`;
+
+    if (confirm(confirmMessage)) {
       try {
         await updateAppointmentStatus(appt.id, 'cancelado');
+        recordAuditLog({
+          action: 'PAGO_REINTEGRADO',
+          amount: isEligibleForRefund ? appt.price : 0,
+          paymentId: appt.paymentId,
+          details: isEligibleForRefund
+            ? `Reintegro del 100% ($ ${appt.price}) aprobado por cancelación con ${Math.round(hoursRemaining)} hs de antelación.`
+            : `Cancelación tardía sin reintegro (< 24 hs).`,
+        });
+
         setAppointments((prev) =>
           prev.map((item) => (item.id === appt.id ? { ...item, status: 'cancelado' } : item))
         );
-        setNotification('El turno fue cancelado y el horario quedó disponible para otros pacientes.');
-        setTimeout(() => setNotification(''), 4500);
+        setNotification(
+          isEligibleForRefund
+            ? 'El turno fue cancelado con éxito. Se solicitó el reintegro del 100% a través de Mercado Pago y el horario quedó disponible.'
+            : 'El turno fue cancelado y el horario quedó disponible en la agenda del profesional.'
+        );
+        setTimeout(() => setNotification(''), 5500);
       } catch (err) {
         alert(err.message || 'Error al cancelar el turno.');
       }
@@ -192,10 +228,11 @@ export default function MyAppointmentsPage() {
                   <div className="mt-4 pt-3 border-t border-borderSubtle flex flex-wrap items-center gap-4 text-xs">
                     <button
                       type="button"
-                      onClick={() => alert(`Descargando comprobante oficial ${appt.paymentId} (PDF)...`)}
-                      className="text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded"
+                      onClick={() => handleViewReceipt(appt)}
+                      className="text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded transition-colors"
+                      title="Ver y descargar comprobante oficial de Mercado Pago"
                     >
-                      <FileText className="w-4 h-4" aria-hidden="true" /> Descargar Comprobante Oficial
+                      <FileText className="w-4 h-4" aria-hidden="true" /> Ver / Descargar Comprobante Oficial
                     </button>
 
                     {(appt.status === 'confirmado' || appt.status === 'solicitado') && (
@@ -217,6 +254,13 @@ export default function MyAppointmentsPage() {
           ))}
         </div>
       )}
+
+      {/* Visor de Comprobante Oficial (Criterio 2 - HU11) */}
+      <PaymentReceiptModal
+        receipt={selectedReceipt}
+        isOpen={Boolean(selectedReceipt)}
+        onClose={() => setSelectedReceipt(null)}
+      />
     </div>
   );
 }

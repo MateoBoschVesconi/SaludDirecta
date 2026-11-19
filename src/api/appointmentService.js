@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import axiosClient from './axiosClient';
+import { onAppointmentStatusChanged } from './packageTrackingService';
 
 // Máquina de estados válida del turno (Criterio 2 - HU9 / RF-11)
 export const VALID_TRANSITIONS = {
@@ -262,6 +263,13 @@ export async function updateAppointmentStatus(appointmentId, newStatus) {
     } catch {
       // Ignorar fallback
     }
+  }
+
+  // 3. Sincronizar seguimiento de paquetes de tratamiento (Criterio 1 - HU12)
+  try {
+    onAppointmentStatusChanged(appointmentId, newStatus);
+  } catch {
+    // Continuar sin interrumpir
   }
 
   return targetIndex !== -1 ? currentList[targetIndex] : { id: appointmentId, status: newStatus };
