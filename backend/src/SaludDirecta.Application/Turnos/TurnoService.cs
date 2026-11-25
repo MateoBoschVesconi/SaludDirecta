@@ -150,7 +150,7 @@ public sealed class TurnoService(
     private async Task<string> NombreAsync(Guid usuarioId, Dictionary<Guid, string> cache, CancellationToken ct)
     {
         if (cache.TryGetValue(usuarioId, out var nombre)) return nombre;
-        nombre = (await usuarios.ObtenerPorIdAsync(usuarioId, ct))?.Nombre ?? "Usuario";
+        nombre = (await usuarios.ObtenerPorIdAsync(usuarioId, ct))?.Nombre ?? "Usuario eliminado";
         cache[usuarioId] = nombre;
         return nombre;
     }

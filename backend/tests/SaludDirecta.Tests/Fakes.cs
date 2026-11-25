@@ -9,10 +9,10 @@ internal sealed class RepositorioEnMemoria : IUsuarioRepository
     public List<Usuario> Guardados { get; } = [];
 
     public Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct) =>
-        Task.FromResult(Guardados.FirstOrDefault(u => u.Id == id));
+        Task.FromResult(Guardados.FirstOrDefault(u => u.Id == id && !u.EstaEliminado));
 
     public Task<Usuario?> ObtenerPorEmailAsync(string emailNormalizado, CancellationToken ct) =>
-        Task.FromResult(Guardados.FirstOrDefault(u => u.Email == emailNormalizado));
+        Task.FromResult(Guardados.FirstOrDefault(u => u.Email == emailNormalizado && !u.EstaEliminado));
 
     public Task<bool> ExisteEmailAsync(string emailNormalizado, CancellationToken ct) =>
         Task.FromResult(Guardados.Any(u => u.Email == emailNormalizado));
@@ -266,4 +266,31 @@ internal sealed class ObservadorQueFalla : ITurnoObservador
 {
     public Task TurnoSolicitadoAsync(Turno turno, CancellationToken ct) => throw new InvalidOperationException("falla");
     public Task EstadoCambiadoAsync(Turno turno, Guid actorId, CancellationToken ct) => throw new InvalidOperationException("falla");
+}
+
+/// <summary>Borra de los repositorios en memoria lo mismo que borra el repositorio real en la base de datos.</summary>
+internal sealed class CuentaRepositorioEnMemoria(
+    AgendaRepositorioEnMemoria agenda,
+    PerfilRepositorioEnMemoria perfiles,
+    PrestacionRepositorioEnMemoria prestaciones,
+    NotificacionRepositorioEnMemoria notificaciones,
+    VerificacionRepositorioEnMemoria verificaciones) : ICuentaRepository
+{
+    public List<EventoAuditoria> Auditoria { get; } = [];
+    public int Llamadas { get; private set; }
+
+    public Task EliminarDatosPersonalesAsync(Usuario usuario, EventoAuditoria evento, CancellationToken ct)
+    {
+        Llamadas++;
+        agenda.Franjas.RemoveAll(f => f.UsuarioId == usuario.Id);
+        agenda.Configuraciones.RemoveAll(c => c.UsuarioId == usuario.Id);
+        agenda.Ausencias.RemoveAll(a => a.UsuarioId == usuario.Id);
+        perfiles.Perfiles.RemoveAll(p => p.UsuarioId == usuario.Id);
+        perfiles.Historial.RemoveAll(h => h.UsuarioId == usuario.Id);
+        verificaciones.Verificaciones.RemoveAll(v => v.UsuarioId == usuario.Id);
+        notificaciones.Todas.RemoveAll(n => n.UsuarioId == usuario.Id);
+        foreach (var prestacion in prestaciones.Todas.Where(p => p.UsuarioId == usuario.Id)) prestacion.DarDeBaja();
+        Auditoria.Add(evento);
+        return Task.CompletedTask;
+    }
 }

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -6,6 +7,7 @@ using SaludDirecta.Api.Background;
 using SaludDirecta.Api.Middleware;
 using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Auth;
+using SaludDirecta.Application.Cuenta;
 using SaludDirecta.Application.Agenda;
 using SaludDirecta.Application.Notificaciones;
 using SaludDirecta.Application.Perfil;
@@ -36,6 +38,9 @@ builder.Services.AddScoped<TurnoService>();
 // (el servicio de turnos le avisa lo que pasa) y el servicio de fondo envía las pendientes.
 builder.Services.AddScoped<ITurnoObservador, NotificadorDeTurnos>();
 builder.Services.AddScoped<NotificacionService>();
+
+// HU14: acceso y supresión de datos personales
+builder.Services.AddScoped<CuentaService>();
 builder.Services.AddHostedService<ServicioDeRecordatorios>();
 
 // --- Autenticación JWT (HU1) ---
@@ -69,6 +74,21 @@ var origenes = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins(origenes).AllowAnyHeader().AllowAnyMethod()));
 
+// --- Límite de intentos en registro e inicio de sesión (RNF-03, contra fuerza bruta) ---
+var intentosPorMinuto = builder.Configuration.GetValue("Seguridad:IntentosPorMinuto", 10);
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("auth", contexto => RateLimitPartition.GetFixedWindowLimiter(
+        contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = intentosPorMinuto,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
+
 // --- API + Swagger ---
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -98,6 +118,7 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.UseMiddleware<CabecerasSeguridadMiddleware>();
 app.UseMiddleware<ManejoExcepcionesMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -114,6 +135,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

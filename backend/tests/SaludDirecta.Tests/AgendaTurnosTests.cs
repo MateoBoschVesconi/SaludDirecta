@@ -1,6 +1,7 @@
 using SaludDirecta.Application.Agenda;
 using SaludDirecta.Application.Abstractions;
 using SaludDirecta.Application.Common;
+using SaludDirecta.Application.Cuenta;
 using SaludDirecta.Application.Notificaciones;
 using SaludDirecta.Application.Perfil;
 using SaludDirecta.Application.Turnos;
@@ -211,6 +212,8 @@ internal class EscenarioAgenda
     public AgendaService Agenda { get; }
     public TurnoService Turnos { get; }
     public NotificacionService Bandeja { get; }
+    public CuentaRepositorioEnMemoria CuentasRepo { get; }
+    public CuentaService Cuenta { get; }
 
     public EscenarioAgenda()
     {
@@ -218,9 +221,12 @@ internal class EscenarioAgenda
         Perfil = new PerfilService(Usuarios, Perfiles, Prestaciones, Verificaciones, reloj);
         PrestacionesServicio = new PrestacionService(Prestaciones, reloj);
         Agenda = new AgendaService(AgendaRepo, TurnosRepo, Usuarios, Perfiles, Prestaciones, reloj);
-        Turnos = new TurnoService(TurnosRepo, Agenda, Usuarios, reloj,
-            [new NotificadorDeTurnos(Notificaciones, Usuarios, reloj)]);
+        var notificador = new NotificadorDeTurnos(Notificaciones, Usuarios, reloj);
+        Turnos = new TurnoService(TurnosRepo, Agenda, Usuarios, reloj, [notificador]);
         Bandeja = EnvioEn(AhoraUtc);
+        CuentasRepo = new CuentaRepositorioEnMemoria(AgendaRepo, Perfiles, Prestaciones, Notificaciones, Verificaciones);
+        Cuenta = new CuentaService(Usuarios, new HasherFalso(), Perfiles, TurnosRepo, Notificaciones, CuentasRepo,
+            [notificador], reloj);
     }
 
     /// <summary>El servicio de notificaciones visto desde otro momento, para probar los envíos programados.</summary>

@@ -27,6 +27,11 @@ public sealed class Usuario
     public DateTime ConsentimientoAceptadoEn { get; private set; }
     public DateTime CreadoEn { get; private set; }
 
+    /// <summary>Momento en que el titular pidió eliminar su cuenta (derecho de supresión). Null si sigue activa.</summary>
+    public DateTime? EliminadoEn { get; private set; }
+
+    public bool EstaEliminado => EliminadoEn is not null;
+
     public static string NormalizarEmail(string? email) =>
         (email ?? string.Empty).Trim().ToLowerInvariant();
 
@@ -87,6 +92,31 @@ public sealed class Usuario
             ConsentimientoAceptadoEn = ahoraUtc,
             CreadoEn = ahoraUtc
         };
+    }
+
+    /// <summary>
+    /// Derecho de supresión (Ley 25.326): borra los datos personales de la cuenta y la deja inutilizable.
+    /// La fila se conserva, ya anonimizada, porque los turnos pasados de la otra persona siguen
+    /// refiriéndose a ella como constancia administrativa, pero sin nombre, correo ni teléfono.
+    /// </summary>
+    public void Anonimizar(DateTime ahoraUtc)
+    {
+        if (EstaEliminado) return;
+
+        Nombre = "Usuario eliminado";
+        Email = $"eliminado-{Id:N}@saluddirecta.invalid"; // libera el correo original y es único por cuenta
+        Telefono = string.Empty;
+        PasswordHash = "!"; // no coincide con ningún hash: nadie puede volver a iniciar sesión
+
+        // La base exige estos tres datos en los profesionales, así que se reemplazan por un texto neutro.
+        if (Rol == Rol.Profesional)
+        {
+            Profesion = "Eliminado";
+            Matricula = "Eliminada";
+            Jurisdiccion = "Eliminada";
+        }
+
+        EliminadoEn = ahoraUtc;
     }
 
     private static bool EsEmailValido(string email) =>
