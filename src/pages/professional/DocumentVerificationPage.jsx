@@ -21,10 +21,10 @@ export default function DocumentVerificationPage() {
 
   // Datos declarados previamente por el profesional (HU2)
   const declaredData = {
-    name: user?.nombre || 'Lic. Mateo Gómez',
-    registry: 'MP 3412',
-    profession: 'Kinesiología y Fisiatría',
-    jurisdiction: 'Chaco',
+    name: user?.nombre || 'Profesional de la Salud',
+    registry: user?.matricula || 'MP 3412',
+    profession: user?.profesion || 'Kinesiología y Fisiatría',
+    jurisdiction: user?.jurisdiccion || 'Chaco',
   };
 
   // Estados del archivo y procesamiento OCR

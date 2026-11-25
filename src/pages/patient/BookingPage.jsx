@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, ChevronRight, Check, CalendarOff } from 'lucide-react';
-import { PROFESSIONALS } from '../../data/mockData';
+import { profesionalService } from '../../api/profesionalService';
 import { getBookedSlots } from '../../api/appointmentService';
 
 export default function BookingPage() {
@@ -9,7 +9,25 @@ export default function BookingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const pro = PROFESSIONALS.find((p) => p.id === Number(id));
+  const [pro, setPro] = useState(null);
+  const [loadingPro, setLoadingPro] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    profesionalService.getProfessionalById(id).then((found) => {
+      if (isMounted) {
+        setPro(found);
+        setLoadingPro(false);
+        if (found?.availableSlots?.[0]?.date) {
+          setSelectedDate(found.availableSlots[0].date);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
   const planId = searchParams.get('plan') || 'individual';
   const packageContractId = searchParams.get('packageContractId');
 
@@ -29,7 +47,7 @@ export default function BookingPage() {
   // Calcular precio según el plan seleccionado (soporte dinámico para paquetes creados por el profesional)
   const availablePackages = useMemo(() => {
     if (!pro) return [];
-    if (pro.id === 1) {
+    if (String(pro.id) === '1' || String(pro.id) === 'pro-me') {
       try {
         const saved = localStorage.getItem('salud_directa_pro_packages');
         if (saved) return JSON.parse(saved);
@@ -40,20 +58,28 @@ export default function BookingPage() {
     return pro.packages || [];
   }, [pro]);
 
-  const [selectedDate, setSelectedDate] = useState(pro?.availableSlots?.[0]?.date || '');
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Consultar franjas ya ocupadas en tiempo real para control de concurrencia (Criterio 1 - HU9)
   useEffect(() => {
     if (!pro || !selectedDate) return;
     let isMounted = true;
+    setLoadingSlots(true);
 
-    getBookedSlots(pro.name, selectedDate).then((slots) => {
-      if (isMounted) {
-        setBookedSlots(slots);
-      }
-    });
+    getBookedSlots(pro.name, selectedDate)
+      .then((slots) => {
+        if (isMounted) {
+          setBookedSlots(slots);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingSlots(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -62,7 +88,7 @@ export default function BookingPage() {
 
   // Verificar si la fecha seleccionada está bloqueada por ausencia del profesional (Criterio 2 - HU8)
   const activeAbsence = useMemo(() => {
-    if (pro?.id !== 1 || !selectedDate) return null;
+    if ((String(pro?.id) !== '1' && String(pro?.id) !== 'pro-me') || !selectedDate) return null;
     try {
       const savedSchedule = localStorage.getItem('salud_directa_pro_schedule');
       if (savedSchedule) {
@@ -76,6 +102,15 @@ export default function BookingPage() {
     }
     return null;
   }, [pro, selectedDate]);
+
+  if (loadingPro) {
+    return (
+      <div className="max-w-2xl mx-auto mt-16 px-4 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto mb-3" aria-hidden="true"></div>
+        <p className="text-sm text-text-muted">Cargando disponibilidad del profesional...</p>
+      </div>
+    );
+  }
 
   if (!pro) {
     return (

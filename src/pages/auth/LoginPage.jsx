@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, Stethoscope, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { authService } from '../../api/authService';
+import { authService, findRegisteredUserByEmail } from '../../api/authService';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -38,18 +38,61 @@ export default function LoginPage() {
       if (err.response?.status === 400 || err.response?.status === 401) {
         setError(err.response.data?.mensaje || err.response.data?.title || 'Credenciales inválidas. Verificá tu correo y contraseña.');
       } else {
-        // 2. Si la API no está encendida aún, fallback al modo desarrollo ágil
-        console.warn('Backend API no disponible, iniciando en modo desarrollo:', err.message);
-        const mockUser = {
-          id: role === 'profesional' ? 'pro-1' : 'pac-1',
-          nombre: role === 'profesional' ? 'Lic. Mateo Gómez' : 'Federico Zeniquel',
-          email,
-          rol: role,
-        };
-        const mockJwt = 'mock_jwt_token_' + Date.now();
-        login(mockUser, mockJwt);
+        // 2. Si la API no está encendida aún, buscar en los usuarios registrados localmente
+        console.warn('Backend API no disponible, iniciando con cuenta local/desarrollo:', err.message);
+        
+        const existingUser = findRegisteredUserByEmail(email);
 
-        const redirectPath = location.state?.from?.pathname || (role === 'profesional' ? '/profesional/dashboard' : '/');
+        let userToLogin;
+        if (existingUser) {
+          // Si el usuario se registró con este correo, usar sus datos reales
+          userToLogin = {
+            id: existingUser.id,
+            nombre: existingUser.nombre,
+            email: existingUser.email,
+            telefono: existingUser.telefono,
+            rol: existingUser.rol || role,
+            profesion: existingUser.profesion,
+            matricula: existingUser.matricula,
+            jurisdiccion: existingUser.jurisdiccion,
+          };
+        } else {
+          // Si no está en registrados, verificar si guardó perfil previamente en el navegador
+          let savedName = '';
+          try {
+            const savedProfile = localStorage.getItem('salud_directa_pro_profile');
+            if (savedProfile) {
+              const parsed = JSON.parse(savedProfile);
+              if (parsed.name && parsed.name !== 'Lic. Mateo Gómez') {
+                savedName = parsed.name;
+              }
+            }
+          } catch {
+            // Ignorar
+          }
+
+          // Limpiar caracteres numéricos o signos del inicio del email para formatear un nombre legible
+          const rawPrefix = email.split('@')[0].replace(/[0-9_]/g, ' ').trim();
+          const derivedName = rawPrefix
+            .split(/[\s.]+/)
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+
+          const finalName = savedName || derivedName || (role === 'profesional' ? 'Profesional de la Salud' : 'Paciente Particular');
+
+          userToLogin = {
+            id: (role === 'profesional' ? 'pro-' : 'pac-') + Date.now(),
+            nombre: role === 'profesional' && !finalName.startsWith('Lic.') && !finalName.startsWith('Dr.') ? `Lic. ${finalName}` : finalName,
+            email,
+            rol: role,
+          };
+        }
+
+        const mockJwt = 'mock_jwt_token_' + Date.now();
+        login(userToLogin, mockJwt);
+
+        const redirectPath = location.state?.from?.pathname || (userToLogin.rol === 'profesional' ? '/profesional/dashboard' : '/');
         navigate(redirectPath, { replace: true });
       }
     } finally {

@@ -71,22 +71,30 @@ export default function DashboardPage() {
     if (list && list.length > 0) {
       return list;
     }
-    saveLocalAppointments(SEED_APPOINTMENTS);
-    return SEED_APPOINTMENTS;
+    // Si es un usuario nuevo diferente a Mateo Gómez, inicia con lista limpia
+    return [];
   });
 
-  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me)
+  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me) o filtrar los del profesional logueado
   useEffect(() => {
     let isMounted = true;
     fetchMyAppointments().then((data) => {
-      if (isMounted && data && data.length > 0) {
-        setAppointments(data);
+      if (isMounted && data) {
+        if (user?.nombre) {
+          // Filtrar turnos pertenecientes al profesional actual o mostrar los que coincidan con su nombre
+          const filtered = data.filter(
+            (t) => t.professionalName?.toLowerCase() === user.nombre.toLowerCase()
+          );
+          setAppointments(filtered.length > 0 ? filtered : data);
+        } else {
+          setAppointments(data);
+        }
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user]);
 
   // Visualización del comprobante oficial (Criterio 2 - HU11: Disponible para ambas partes)
   const handleViewReceipt = (row) => {

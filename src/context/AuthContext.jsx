@@ -25,6 +25,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem('salud_directa_token', jwtToken);
   };
 
+  const updateUser = (partialUserData) => {
+    setUser((prev) => {
+      const updated = { ...(prev || {}), ...partialUserData };
+      localStorage.setItem('salud_directa_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -43,6 +51,7 @@ export function AuthProvider({ children }) {
       isLoading,
       setIsLoading,
       login,
+      updateUser,
       logout,
       isAuthenticated,
       isProfessional,

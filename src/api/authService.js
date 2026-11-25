@@ -1,12 +1,41 @@
 import axiosClient from './axiosClient';
 
+const USERS_STORAGE_KEY = 'salud_directa_registered_users';
+
+export const getRegisteredUsers = () => {
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveRegisteredUser = (userWithCredentials) => {
+  const users = getRegisteredUsers();
+  const index = users.findIndex(
+    (u) => u.email?.toLowerCase() === userWithCredentials.email?.toLowerCase()
+  );
+  if (index >= 0) {
+    users[index] = { ...users[index], ...userWithCredentials };
+  } else {
+    users.push(userWithCredentials);
+  }
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+};
+
+export const findRegisteredUserByEmail = (email) => {
+  const users = getRegisteredUsers();
+  return users.find((u) => u.email?.toLowerCase() === email?.toLowerCase()) || null;
+};
+
 /**
- * Servicio de Autenticación integrado con el Backend .NET 8 (HU1 - Ley 25.326)
+ * Servicio de Autenticación integrado con el Backend .NET 8 y fallback persistente
  */
 export const authService = {
   /**
    * Inicio de sesión de usuario (paciente o profesional)
-   * @param {Object} credentials - { email, password }
+   * @param {Object} credentials - { email, password, rol }
    * @returns {Promise<{ token: string, user: Object, expiraEnUtc: string }>}
    */
   async login(credentials) {

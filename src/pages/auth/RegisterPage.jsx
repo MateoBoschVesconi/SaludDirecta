@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ShieldCheck, User, Stethoscope, FileCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { authService } from '../../api/authService';
+import { authService, saveRegisteredUser } from '../../api/authService';
+import { profesionalService } from '../../api/profesionalService';
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -51,6 +52,32 @@ export default function RegisterPage() {
         consentimientoAceptado: true,
       });
 
+      // Si es profesional, sincronizarlo directamente para que esté disponible en búsquedas y turnos
+      if (role === 'profesional') {
+        await profesionalService.registrarOActualizarProfesional({
+          name: nombre,
+          profession: profesion,
+          specialty: profesion,
+          registry: matricula,
+          jurisdiction: jurisdiccion,
+          price: 25000,
+          location: 'Resistencia, Chaco',
+        });
+      }
+
+      // Guardar usuario en registro local para que pueda volver a iniciar sesión con sus datos exactos
+      saveRegisteredUser({
+        id: data.user?.id || (role === 'profesional' ? 'pro-' + Date.now() : 'pac-' + Date.now()),
+        nombre,
+        email,
+        telefono,
+        password,
+        rol: role,
+        profesion: role === 'profesional' ? profesion : undefined,
+        matricula: role === 'profesional' ? matricula : undefined,
+        jurisdiccion: role === 'profesional' ? jurisdiccion : undefined,
+      });
+
       login(data.user, data.token);
       navigate(role === 'profesional' ? '/profesional/matricula' : '/');
     } catch (err) {
@@ -70,6 +97,24 @@ export default function RegisterPage() {
           jurisdiccion: role === 'profesional' ? jurisdiccion : undefined,
           consentAcceptedAt: new Date().toISOString(),
         };
+
+        if (role === 'profesional') {
+          await profesionalService.registrarOActualizarProfesional({
+            id: newUser.id,
+            name: nombre,
+            profession: profesion,
+            specialty: profesion,
+            registry: matricula,
+            jurisdiction: jurisdiccion,
+            price: 25000,
+            location: 'Resistencia, Chaco',
+          });
+        }
+
+        saveRegisteredUser({
+          ...newUser,
+          password,
+        });
 
         login(newUser, 'jwt_token_registered_' + Date.now());
         navigate(role === 'profesional' ? '/profesional/matricula' : '/');

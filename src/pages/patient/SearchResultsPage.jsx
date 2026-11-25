@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin, SlidersHorizontal } from 'lucide-react';
-import { PROFESSIONALS } from '../../data/mockData';
+import { profesionalService } from '../../api/profesionalService';
 import ProfessionalCard from '../../components/ProfessionalCard';
 
 export default function SearchResultsPage() {
@@ -11,11 +11,26 @@ export default function SearchResultsPage() {
   const query = searchParams.get('q') || '';
   const category = searchParams.get('categoria') || '';
 
+  const [professionalsList, setProfessionalsList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterAccessibility, setFilterAccessibility] = useState(false);
   const [maxPrice] = useState(50000);
 
+  useEffect(() => {
+    let isMounted = true;
+    profesionalService.getProfessionals().then((list) => {
+      if (isMounted) {
+        setProfessionalsList(list);
+        setLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filteredProfessionals = useMemo(() => {
-    return PROFESSIONALS.filter((pro) => {
+    return professionalsList.filter((pro) => {
       const matchText = query === '' || 
         pro.name.toLowerCase().includes(query.toLowerCase()) ||
         pro.specialty.toLowerCase().includes(query.toLowerCase()) ||
@@ -30,7 +45,7 @@ export default function SearchResultsPage() {
 
       return matchText && matchCategory && matchAccessibility && matchPrice;
     });
-  }, [query, category, filterAccessibility, maxPrice]);
+  }, [professionalsList, query, category, filterAccessibility, maxPrice]);
 
   return (
     <div className="max-w-4xl mx-auto mt-6 px-4 animate-in fade-in duration-300">
