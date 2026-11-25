@@ -81,7 +81,12 @@ export default function SearchResultsPage() {
         </div>
       </div>
 
-      {filteredProfessionals.length === 0 ? (
+      {loading ? (
+        <div className="card text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto mb-3" aria-hidden="true"></div>
+          <p className="text-sm text-text-muted">Buscando profesionales disponibles...</p>
+        </div>
+      ) : filteredProfessionals.length === 0 ? (
         <div className="card text-center py-12">
           <SlidersHorizontal className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
           <h2 className="text-lg font-bold text-text-main mb-1">No se encontraron profesionales</h2>

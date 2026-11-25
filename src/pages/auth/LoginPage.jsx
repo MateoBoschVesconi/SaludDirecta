@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
-import { Lock, Mail, AlertCircle, Stethoscope, User } from 'lucide-react';
+import { Lock, Mail, AlertCircle, CheckCircle2, Stethoscope, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService, findRegisteredUserByEmail } from '../../api/authService';
 
@@ -9,6 +9,8 @@ export default function LoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('expired') === 'true';
+  const accountDeleted = searchParams.get('accountDeleted') === 'true';
+  const turnosCancelados = location.state?.turnosCancelados;
 
   const { login } = useAuth();
 
@@ -35,8 +37,22 @@ export default function LoginPage() {
       const redirectPath = location.state?.from?.pathname || (data.user.rol === 'profesional' ? '/profesional/dashboard' : '/');
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      if (err.response?.status === 400 || err.response?.status === 401) {
-        setError(err.response.data?.mensaje || err.response.data?.title || 'Credenciales inválidas. Verificá tu correo y contraseña.');
+      if (err.response?.status === 429) {
+        setError('Demasiados intentos en poco tiempo. Por seguridad, esperá un minuto antes de volver a intentar.');
+      } else if (err.response?.status === 400 || err.response?.status === 401) {
+        setError(
+          err.response.data?.detail ||
+            err.response.data?.mensaje ||
+            err.response.data?.title ||
+            'Credenciales inválidas. Verificá tu correo y contraseña.'
+        );
+      } else if (err.response) {
+        setError(
+          err.response.data?.detail ||
+            err.response.data?.mensaje ||
+            err.response.data?.title ||
+            'No se pudo iniciar sesión en este momento.'
+        );
       } else {
         // 2. Si la API no está encendida aún, buscar en los usuarios registrados localmente
         console.warn('Backend API no disponible, iniciando con cuenta local/desarrollo:', err.message);
@@ -120,15 +136,36 @@ export default function LoginPage() {
           <p className="text-xs text-text-muted mt-1">Accedé a tu cuenta en Salud Directa</p>
         </div>
 
+        {accountDeleted && (
+          <div
+            className="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-900 flex items-start gap-2 mb-4"
+            role="status"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <span>
+              Tu cuenta y datos personales fueron eliminados definitivamente según la Ley 25.326.
+              {typeof turnosCancelados === 'number' && turnosCancelados > 0
+                ? ` Se cancelaron ${turnosCancelados} turno(s) activo(s) y se notificó a la contraparte.`
+                : ''}
+            </span>
+          </div>
+        )}
+
         {sessionExpired && (
-          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2 mb-4">
+          <div
+            className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2 mb-4"
+            role="status"
+          >
             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <span>Tu sesión ha expirado por motivos de seguridad. Por favor, ingresá nuevamente.</span>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-800 flex items-start gap-2 mb-4">
+          <div
+            className="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-800 flex items-start gap-2 mb-4"
+            role="alert"
+          >
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <span>{error}</span>
           </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, User, LogOut, Calendar, Stethoscope } from 'lucide-react';
+import { Plus, User, LogOut, Calendar, Stethoscope, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
@@ -66,6 +66,21 @@ export default function Navbar() {
 
               {/* Campana de Notificaciones y Recordatorios (HU10) */}
               <NotificationBell />
+
+              {/* Acceso a Privacidad y Datos Personales (HU14 - Ley 25.326) */}
+              <Link
+                to={isProfessional ? '/profesional/privacidad' : '/mi-cuenta'}
+                className={`text-sm font-medium px-2.5 py-2 rounded-lg flex items-center gap-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-primary-dark ${
+                  location.pathname === '/mi-cuenta' || location.pathname === '/profesional/privacidad'
+                    ? 'bg-primary-light text-primary-dark font-semibold'
+                    : 'text-text-muted hover:text-text-main'
+                }`}
+                aria-label="Privacidad y datos personales (Ley 25.326)"
+                title="Privacidad y datos personales (Ley 25.326)"
+              >
+                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden md:inline">Privacidad</span>
+              </Link>
 
               <span className="hidden sm:inline-flex items-center text-xs font-medium text-text-muted bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
                 <User className="w-3.5 h-3.5 mr-1" aria-hidden="true" />

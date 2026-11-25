@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { 
   CheckCircle2, 
   Clock, 
-  Calendar, 
-  ChevronRight, 
   Sparkles, 
-  AlertCircle, 
+  AlertCircle,
   Stethoscope, 
   ChevronDown, 
   ChevronUp,
@@ -23,7 +21,6 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
   const completed = Number(packageData.completedSessions) || 0;
   const booked = Number(packageData.bookedSessions) || 0;
   const pendingToBook = Math.max(0, total - booked);
-  const pendingSessions = Math.max(0, total - completed);
 
   const percentage = Math.min(100, Math.round((completed / total) * 100));
   const isCompleted = completed >= total;

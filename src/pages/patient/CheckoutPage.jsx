@@ -112,7 +112,7 @@ export default function CheckoutPage() {
       });
 
       // 3. Confirmar la reserva del turno e inyectar el comprobante generado
-      await bookAppointment({
+      const bookedAppt = await bookAppointment({
         professionalId: bookingData.professionalId,
         professionalName: bookingData.professionalName,
         specialty: bookingData.specialty,
@@ -126,6 +126,39 @@ export default function CheckoutPage() {
         paymentId: receipt.paymentId,
         status: 'confirmado',
       });
+
+      // 4. Actualizar seguimiento del paquete de tratamiento (HU12)
+      try {
+        if (bookingData.packageContractId) {
+          // Sesión subsecuente de un paquete previamente contratado
+          bookSessionForPackage(bookingData.packageContractId, {
+            id: bookedAppt.id,
+            date: bookingData.selectedDate,
+            time: bookingData.selectedTime,
+          });
+        } else if (bookingData.totalSessions > 1 || bookingData.packageId) {
+          // Alta de un nuevo paquete de sesiones contratado
+          contractPackage({
+            packageId: bookingData.packageId,
+            title: bookingData.planTitle,
+            totalSessions: bookingData.totalSessions || 4,
+            professionalId: bookingData.professionalId,
+            professionalName: bookingData.professionalName,
+            specialty: bookingData.specialty,
+            patientName: cardHolder || user?.nombre || 'Paciente Particular',
+            patientEmail: user?.email || 'paciente@saluddirecta.ar',
+            totalPrice: totalAmount,
+            paymentId: receipt.paymentId,
+            firstAppointment: {
+              id: bookedAppt.id,
+              date: bookingData.selectedDate,
+              time: bookingData.selectedTime,
+            },
+          });
+        }
+      } catch (pkgErr) {
+        console.warn('Aviso sincronización paquete:', pkgErr.message);
+      }
 
       setCompletedReceipt(receipt);
       setIsProcessing(false);

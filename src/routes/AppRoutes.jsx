@@ -23,6 +23,9 @@ import DocumentVerificationPage from '../pages/professional/DocumentVerification
 import PackagesManagementPage from '../pages/professional/PackagesManagementPage';
 import ScheduleConfigPage from '../pages/professional/ScheduleConfigPage';
 
+// Páginas Comunes (HU14 Privacidad y Cuenta)
+import PrivacyAndAccountPage from '../pages/common/PrivacyAndAccountPage';
+
 // Error 404
 import NotFoundPage from '../pages/NotFoundPage';
 
@@ -37,6 +40,14 @@ export default function AppRoutes() {
         <Route path="reservar/:id" element={<BookingPage />} />
         <Route path="checkout" element={<CheckoutPage />} />
         <Route path="mis-turnos" element={<MyAppointmentsPage />} />
+        <Route
+          path="mi-cuenta"
+          element={
+            <ProtectedRoute>
+              <PrivacyAndAccountPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="login" element={<LoginPage />} />
         <Route path="registro" element={<RegisterPage />} />
         <Route path="*" element={<NotFoundPage />} />
@@ -56,6 +67,7 @@ export default function AppRoutes() {
         <Route path="paquetes" element={<PackagesManagementPage />} />
         <Route path="documentacion" element={<DocumentVerificationPage />} />
         <Route path="matricula" element={<LicenseAndProfilePage />} />
+        <Route path="privacidad" element={<PrivacyAndAccountPage />} />
       </Route>
     </Routes>
   );

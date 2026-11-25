@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Clock, FileText, CheckCircle2, Calendar, ArrowRight, XCircle, AlertTriangle } from 'lucide-react';
+import { 
+  Clock, 
+  FileText, 
+  CheckCircle2, 
+  Calendar, 
+  ArrowRight, 
+  XCircle, 
+  AlertTriangle,
+  Package
+} from 'lucide-react';
 import { updateAppointmentStatus, fetchMyAppointments } from '../../api/appointmentService';
 import { getReceiptByPaymentId, recordAuditLog, createFallbackReceipt } from '../../api/paymentService';
+import { getPatientContractedPackages } from '../../api/packageTrackingService';
 import PaymentReceiptModal from '../../components/common/PaymentReceiptModal';
+import PackageProgressBar from '../../components/patient/PackageProgressBar';
 
 const DEFAULT_APPOINTMENTS = [
   {
@@ -39,6 +50,8 @@ export default function MyAppointmentsPage() {
 
   const [notification, setNotification] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [activeTab, setActiveTab] = useState('turnos'); // 'turnos' | 'paquetes'
+  const [packages, setPackages] = useState(() => getPatientContractedPackages());
 
   // Sincronizar con el Backend .NET 8 (/api/turnos/me)
   useEffect(() => {
@@ -132,6 +145,7 @@ export default function MyAppointmentsPage() {
         setAppointments((prev) =>
           prev.map((item) => (item.id === appt.id ? { ...item, status: 'cancelado' } : item))
         );
+        setPackages(getPatientContractedPackages());
         setNotification(
           isEligibleForRefund
             ? 'El turno fue cancelado con éxito. Se solicitó el reintegro del 100% a través de Mercado Pago y el horario quedó disponible.'
@@ -167,8 +181,8 @@ export default function MyAppointmentsPage() {
 
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-borderSubtle">
         <div>
-          <h1 className="text-2xl font-bold text-text-main">Mis Turnos</h1>
-          <p className="text-sm text-text-muted">Historial y próximas consultas programadas</p>
+          <h1 className="text-2xl font-bold text-text-main">Mis Turnos y Tratamientos</h1>
+          <p className="text-sm text-text-muted">Historial de consultas y seguimiento de paquetes de sesiones</p>
         </div>
         <Link
           to="/"
@@ -178,80 +192,149 @@ export default function MyAppointmentsPage() {
         </Link>
       </div>
 
-      {appointments.length === 0 ? (
-        <div className="card text-center py-12">
-          <Calendar className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
-          <h2 className="text-lg font-bold text-text-main mb-1">No tenés turnos activos</h2>
-          <p className="text-sm text-text-muted mb-4">Buscá un profesional de tu interés y reservá en minutos.</p>
-          <Link to="/" className="btn-primary max-w-xs mx-auto">
-            Buscar Profesionales
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4" role="feed" aria-label="Historial de turnos">
-          {appointments.map((appt) => (
-            <div 
-              key={appt.id} 
-              className={`card border-l-4 transition-all ${
-                appt.status === 'cancelado' 
-                  ? 'border-l-slate-300 bg-slate-50/60 opacity-80' 
-                  : 'border-l-primary-dark hover:shadow-md'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {appt.id}
-                  </span>
-                  {getStatusBadge(appt.status)}
-                </div>
-                <div className="text-xs text-text-muted">
-                  Comprobante: <strong className="text-text-main">{appt.paymentId}</strong>
-                </div>
-              </div>
+      {/* Pestañas de Navegación: Consultas vs Seguimiento de Paquetes (HU12) */}
+      <div className="flex items-center gap-2 mb-6 border-b border-borderSubtle" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'turnos'}
+          onClick={() => setActiveTab('turnos')}
+          className={`pb-3 px-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'turnos'
+              ? 'border-primary-dark text-primary-dark'
+              : 'border-transparent text-text-muted hover:text-text-main'
+          }`}
+        >
+          <Calendar className="w-4 h-4" aria-hidden="true" />
+          <span>Consultas y Turnos</span>
+          <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">
+            {appointments.length}
+          </span>
+        </button>
 
-              <div className="flex gap-4 items-start">
-                <div className="bg-sky-50 text-primary-dark p-3 rounded-xl border border-sky-100 flex-shrink-0">
-                  <Clock className="w-6 h-6" aria-hidden="true" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="font-bold text-lg text-text-main">
-                    {appt.date} · {appt.time}
-                  </h2>
-                  <p className="text-sm text-text-main font-semibold mt-0.5">
-                    {appt.professionalName} <span className="font-normal text-text-muted">· {appt.specialty}</span>
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Modalidad: {appt.planTitle} · Monto abonado: <strong className="text-text-main font-semibold">$ {appt.price.toLocaleString('es-AR')}</strong>
-                  </p>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'paquetes'}
+          onClick={() => setActiveTab('paquetes')}
+          className={`pb-3 px-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            activeTab === 'paquetes'
+              ? 'border-primary-dark text-primary-dark'
+              : 'border-transparent text-text-muted hover:text-text-main'
+          }`}
+        >
+          <Package className="w-4 h-4" aria-hidden="true" />
+          <span>Seguimiento de Paquetes (HU12)</span>
+          <span className="text-xs bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full">
+            {packages.length}
+          </span>
+        </button>
+      </div>
 
-                  <div className="mt-4 pt-3 border-t border-borderSubtle flex flex-wrap items-center gap-4 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleViewReceipt(appt)}
-                      className="text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded transition-colors"
-                      title="Ver y descargar comprobante oficial de Mercado Pago"
-                    >
-                      <FileText className="w-4 h-4" aria-hidden="true" /> Ver / Descargar Comprobante Oficial
-                    </button>
+      {/* Pestaña 1: Turnos y Consultas */}
+      {activeTab === 'turnos' && (
+        <>
+          {appointments.length === 0 ? (
+            <div className="card text-center py-12">
+              <Calendar className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
+              <h2 className="text-lg font-bold text-text-main mb-1">No tenés turnos activos</h2>
+              <p className="text-sm text-text-muted mb-4">Buscá un profesional de tu interés y reservá en minutos.</p>
+              <Link to="/" className="btn-primary max-w-xs mx-auto">
+                Buscar Profesionales
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4" role="feed" aria-label="Historial de turnos">
+              {appointments.map((appt) => (
+                <div 
+                  key={appt.id} 
+                  className={`card border-l-4 transition-all ${
+                    appt.status === 'cancelado' 
+                      ? 'border-l-slate-300 bg-slate-50/60 opacity-80' 
+                      : 'border-l-primary-dark hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        {appt.id}
+                      </span>
+                      {getStatusBadge(appt.status)}
+                    </div>
+                    <div className="text-xs text-text-muted">
+                      Comprobante: <strong className="text-text-main">{appt.paymentId}</strong>
+                    </div>
+                  </div>
 
-                    {(appt.status === 'confirmado' || appt.status === 'solicitado') && (
-                      <>
-                        <span className="text-slate-300">|</span>
+                  <div className="flex gap-4 items-start">
+                    <div className="bg-sky-50 text-primary-dark p-3 rounded-xl border border-sky-100 flex-shrink-0">
+                      <Clock className="w-6 h-6" aria-hidden="true" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="font-bold text-lg text-text-main">
+                        {appt.date} · {appt.time}
+                      </h2>
+                      <p className="text-sm text-text-main font-semibold mt-0.5">
+                        {appt.professionalName} <span className="font-normal text-text-muted">· {appt.specialty}</span>
+                      </p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        Modalidad: {appt.planTitle} · Monto abonado: <strong className="text-text-main font-semibold">$ {appt.price.toLocaleString('es-AR')}</strong>
+                      </p>
+
+                      <div className="mt-4 pt-3 border-t border-borderSubtle flex flex-wrap items-center gap-4 text-xs">
                         <button
                           type="button"
-                          onClick={() => handleCancelAppointment(appt)}
-                          className="text-medical-error hover:text-red-700 font-semibold focus-visible:ring-2 focus-visible:ring-medical-error p-1 rounded transition-colors"
+                          onClick={() => handleViewReceipt(appt)}
+                          className="text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded transition-colors"
+                          title="Ver y descargar comprobante oficial de Mercado Pago"
                         >
-                          Cancelar Turno
+                          <FileText className="w-4 h-4" aria-hidden="true" /> Ver / Descargar Comprobante Oficial
                         </button>
-                      </>
-                    )}
+
+                        {(appt.status === 'confirmado' || appt.status === 'solicitado') && (
+                          <>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelAppointment(appt)}
+                              className="text-medical-error hover:text-red-700 font-semibold focus-visible:ring-2 focus-visible:ring-medical-error p-1 rounded transition-colors"
+                            >
+                              Cancelar Turno
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
+        </>
+      )}
+
+      {/* Pestaña 2: Seguimiento de Paquetes de Tratamiento (HU12) */}
+      {activeTab === 'paquetes' && (
+        <div className="space-y-6" role="tabpanel" aria-label="Seguimiento de planes y paquetes de tratamiento">
+          {packages.length === 0 ? (
+            <div className="card text-center py-12">
+              <Package className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
+              <h2 className="text-lg font-bold text-text-main mb-1">No tenés paquetes de tratamiento activos</h2>
+              <p className="text-sm text-text-muted mb-4">
+                Podés contratar planes integrales de kinesiología o rehabilitación con descuentos en el perfil de cada profesional.
+              </p>
+              <Link to="/" className="btn-primary max-w-xs mx-auto">
+                Buscar Profesionales
+              </Link>
+            </div>
+          ) : (
+            packages.map((pkg) => (
+              <PackageProgressBar
+                key={pkg.id}
+                packageData={pkg}
+              />
+            ))
+          )}
         </div>
       )}
 

@@ -1,100 +1,55 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Calendar, 
-  Users, 
-  DollarSign, 
-  UserX, 
-  Download, 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  XCircle, 
+import { Link } from 'react-router-dom';
+import {
+  Calendar,
+  Users,
+  DollarSign,
+  UserX,
+  Download,
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  XCircle,
   Filter,
-  FileText
+  FileText,
+  Package,
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getLocalAppointments, updateAppointmentStatus, saveLocalAppointments, fetchMyAppointments } from '../../api/appointmentService';
+import { getLocalAppointments, updateAppointmentStatus, fetchMyAppointments } from '../../api/appointmentService';
 import { getReceiptByPaymentId, createFallbackReceipt } from '../../api/paymentService';
+import { getProfessionalContractedPackages } from '../../api/packageTrackingService';
 import PaymentReceiptModal from '../../components/common/PaymentReceiptModal';
-
-const SEED_APPOINTMENTS = [
-  {
-    id: 'TUR-1001',
-    patientName: 'Gonzalo Silva',
-    professionalName: 'Lic. Mateo Gómez',
-    time: '09:00 hs',
-    date: '2026-11-05',
-    planTitle: 'Consulta Particular',
-    status: 'cumplido',
-    price: 25000,
-  },
-  {
-    id: 'TUR-1002',
-    patientName: 'Mariana Duarte',
-    professionalName: 'Lic. Mateo Gómez',
-    time: '10:30 hs',
-    date: '2026-11-05',
-    planTitle: 'Plan Integral (Sesión 3/8)',
-    status: 'confirmado',
-    price: 21000,
-  },
-  {
-    id: 'TUR-1003',
-    patientName: 'Esteban Paredes',
-    professionalName: 'Lic. Mateo Gómez',
-    time: '11:30 hs',
-    date: '2026-11-05',
-    planTitle: 'Consulta Particular',
-    status: 'confirmado',
-    price: 25000,
-  },
-  {
-    id: 'TUR-1004',
-    patientName: 'Camila Benítez',
-    professionalName: 'Lic. Mateo Gómez',
-    time: '16:00 hs',
-    date: '2026-11-05',
-    planTitle: 'Consulta Particular',
-    status: 'confirmado',
-    price: 25000,
-  },
-];
+import PackageProgressBar from '../../components/patient/PackageProgressBar';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [filterStatus, setFilterStatus] = useState('todos');
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [contractedPackages, setContractedPackages] = useState(() => getProfessionalContractedPackages(user?.nombre));
 
   const [appointments, setAppointments] = useState(() => {
     const list = getLocalAppointments();
     if (list && list.length > 0) {
       return list;
     }
-    // Si es un usuario nuevo diferente a Mateo Gómez, inicia con lista limpia
-    return [];
+    saveLocalAppointments(SEED_APPOINTMENTS);
+    return SEED_APPOINTMENTS;
   });
 
-  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me) o filtrar los del profesional logueado
+  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me)
   useEffect(() => {
     let isMounted = true;
     fetchMyAppointments().then((data) => {
-      if (isMounted && data) {
-        if (user?.nombre) {
-          // Filtrar turnos pertenecientes al profesional actual o mostrar los que coincidan con su nombre
-          const filtered = data.filter(
-            (t) => t.professionalName?.toLowerCase() === user.nombre.toLowerCase()
-          );
-          setAppointments(filtered.length > 0 ? filtered : data);
-        } else {
-          setAppointments(data);
-        }
+      if (isMounted && data && data.length > 0) {
+        setAppointments(data);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, []);
 
   // Visualización del comprobante oficial (Criterio 2 - HU11: Disponible para ambas partes)
   const handleViewReceipt = (row) => {
@@ -113,6 +68,8 @@ export default function DashboardPage() {
       setAppointments((prev) =>
         prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a))
       );
+      // Sincronizar el avance de los paquetes en tiempo real (Criterio 1 - HU12)
+      setContractedPackages(getProfessionalContractedPackages(user?.nombre));
       setFeedbackMsg(`Turno ${appointmentId} actualizado a estado "${newStatus}".`);
       setTimeout(() => setFeedbackMsg(''), 4000);
     } catch (err) {

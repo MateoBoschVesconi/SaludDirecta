@@ -11,6 +11,10 @@ export default function BookingPage() {
 
   const [pro, setPro] = useState(null);
   const [loadingPro, setLoadingPro] = useState(true);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadedSlotsKey, setLoadedSlotsKey] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -58,16 +62,14 @@ export default function BookingPage() {
     return pro.packages || [];
   }, [pro]);
 
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [bookedSlots, setBookedSlots] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  const currentSlotsKey = pro && selectedDate ? `${pro.name}|${selectedDate}` : '';
+  const loadingSlots = Boolean(currentSlotsKey && loadedSlotsKey !== currentSlotsKey);
 
   // Consultar franjas ya ocupadas en tiempo real para control de concurrencia (Criterio 1 - HU9)
   useEffect(() => {
     if (!pro || !selectedDate) return;
     let isMounted = true;
-    setLoadingSlots(true);
+    const key = `${pro.name}|${selectedDate}`;
 
     getBookedSlots(pro.name, selectedDate)
       .then((slots) => {
@@ -77,7 +79,7 @@ export default function BookingPage() {
       })
       .finally(() => {
         if (isMounted) {
-          setLoadingSlots(false);
+          setLoadedSlotsKey(key);
         }
       });
 

@@ -65,13 +65,12 @@ export default function RegisterPage() {
         });
       }
 
-      // Guardar usuario en registro local para que pueda volver a iniciar sesión con sus datos exactos
+      // Guardar usuario en registro local sin almacenar contraseña (Ley 25.326 / HU14)
       saveRegisteredUser({
         id: data.user?.id || (role === 'profesional' ? 'pro-' + Date.now() : 'pac-' + Date.now()),
         nombre,
         email,
         telefono,
-        password,
         rol: role,
         profesion: role === 'profesional' ? profesion : undefined,
         matricula: role === 'profesional' ? matricula : undefined,
@@ -81,8 +80,22 @@ export default function RegisterPage() {
       login(data.user, data.token);
       navigate(role === 'profesional' ? '/profesional/matricula' : '/');
     } catch (err) {
-      if (err.response?.status === 400 || err.response?.status === 409) {
-        setError(err.response.data?.mensaje || err.response.data?.title || 'No se pudo completar el registro. Verificá los datos.');
+      if (err.response?.status === 429) {
+        setError('Demasiados intentos de registro en poco tiempo. Por seguridad, esperá un minuto antes de volver a intentar.');
+      } else if (err.response?.status === 400 || err.response?.status === 409) {
+        setError(
+          err.response.data?.detail ||
+            err.response.data?.mensaje ||
+            err.response.data?.title ||
+            'No se pudo completar el registro. Verificá los datos.'
+        );
+      } else if (err.response) {
+        setError(
+          err.response.data?.detail ||
+            err.response.data?.mensaje ||
+            err.response.data?.title ||
+            'No se pudo completar el registro en este momento.'
+        );
       } else {
         // 2. Fallback de desarrollo si la API local no está corriendo
         console.warn('Backend API no disponible, registrando en modo desarrollo:', err.message);
@@ -111,10 +124,7 @@ export default function RegisterPage() {
           });
         }
 
-        saveRegisteredUser({
-          ...newUser,
-          password,
-        });
+        saveRegisteredUser(newUser);
 
         login(newUser, 'jwt_token_registered_' + Date.now());
         navigate(role === 'profesional' ? '/profesional/matricula' : '/');
