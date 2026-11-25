@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  CheckCircle2, 
-  Clock, 
-  Sparkles, 
+import {
+  CheckCircle2,
+  Clock,
+  Calendar,
+  ChevronRight,
+  Sparkles,
   AlertCircle,
-  Stethoscope, 
-  ChevronDown, 
+  Stethoscope,
+  ChevronDown,
   ChevronUp,
   ArrowRight
 } from 'lucide-react';
@@ -21,6 +23,7 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
   const completed = Number(packageData.completedSessions) || 0;
   const booked = Number(packageData.bookedSessions) || 0;
   const pendingToBook = Math.max(0, total - booked);
+  const pendingSessions = Math.max(0, total - completed);
 
   const percentage = Math.min(100, Math.round((completed / total) * 100));
   const isCompleted = completed >= total;
@@ -78,7 +81,7 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
 
       {/* Barra de Progreso Visual Accesible (Criterio 2 - HU12) */}
       <div className="space-y-1.5">
-        <div 
+        <div
           className="w-full bg-slate-100 rounded-full h-3.5 p-0.5 overflow-hidden border border-slate-200"
           role="progressbar"
           aria-valuenow={percentage}
@@ -86,7 +89,7 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
           aria-valuemax={100}
           aria-label={`Progreso del tratamiento: ${completed} de ${total} sesiones cumplidas (${percentage}%)`}
         >
-          <div 
+          <div
             className="bg-gradient-to-r from-primary-dark to-emerald-600 h-full rounded-full transition-all duration-500 shadow-inner"
             style={{ width: `${percentage}%` }}
           />
@@ -131,15 +134,14 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
             const isSessionBooked = sessionData?.status === 'confirmado';
 
             return (
-              <div 
+              <div
                 key={sessionNum}
-                className={`p-2 rounded-lg text-center flex flex-col items-center justify-center border transition-all ${
-                  isSessionCompleted
-                    ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950 font-bold'
-                    : isSessionBooked
+                className={`p-2 rounded-lg text-center flex flex-col items-center justify-center border transition-all ${isSessionCompleted
+                  ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950 font-bold'
+                  : isSessionBooked
                     ? 'bg-sky-100/70 border-sky-300 text-sky-950 font-bold'
                     : 'bg-white border-dashed border-slate-300 text-slate-400'
-                }`}
+                  }`}
                 title={`Sesión ${sessionNum}: ${isSessionCompleted ? 'Cumplida' : isSessionBooked ? 'Agendada' : 'Pendiente'}`}
               >
                 <div className="mb-0.5">
@@ -230,13 +232,12 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
                   </div>
                 </div>
 
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  s.status === 'cumplido'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : s.status === 'confirmado'
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.status === 'cumplido'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : s.status === 'confirmado'
                     ? 'bg-sky-100 text-sky-800'
                     : 'bg-slate-100 text-slate-700'
-                }`}>
+                  }`}>
                   {s.status === 'cumplido' ? 'Cumplida' : s.status === 'confirmado' ? 'Programada' : s.status}
                 </span>
               </div>
@@ -247,3 +248,4 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
     </div>
   );
 }
+

@@ -1,8 +1,35 @@
 import axiosClient from './axiosClient';
 import { supabase } from '../lib/supabase';
 import { PROFESSIONALS as SEED_PROFESSIONALS } from '../data/mockData';
+import { filterAndSortProfessionals, extractSearchFacets } from '../utils/professionalSearch';
 
 const LOCAL_CUSTOM_PROS_KEY = 'salud_directa_custom_professionals';
+const CACHE_TTL_MS = 60_000;
+const SUPABASE_TIMEOUT_MS = 1200;
+
+let cachedProfessionals = null;
+let cachedAt = 0;
+
+function normalizeProfessional(raw) {
+  if (!raw) return raw;
+  const isVerified = Boolean(
+    raw.isVerified ??
+      (raw.verificationStatus ? raw.verificationStatus === 'verificado' : true)
+  );
+  return {
+    ...raw,
+    isVerified,
+    verificationStatus: raw.verificationStatus || (isVerified ? 'verificado' : 'pendiente'),
+    hasRampAccessibility: Boolean(raw.hasRampAccessibility ?? raw.hasRamp ?? raw.has_ramp),
+    hasElevator: Boolean(raw.hasElevator ?? raw.has_elevator),
+    hasAdaptedBathroom: Boolean(raw.hasAdaptedBathroom ?? raw.has_adapted_bathroom),
+    sessionDurationMinutes: Number(raw.sessionDurationMinutes) || 45,
+    price: Number(raw.price ?? raw.consultationPrice) || 25000,
+    isPublished: raw.isPublished !== false,
+    packages: Array.isArray(raw.packages) ? raw.packages : [],
+    availableSlots: Array.isArray(raw.availableSlots) ? raw.availableSlots : [],
+  };
+}
 
 export const getLocalCustomProfessionals = () => {
   try {
@@ -58,43 +85,57 @@ export const profesionalService = {
    * 2. Profesionales creados localmente en el navegador
    * 3. Seed inicial (mockData)
    */
-  async getProfessionals() {
+  async getProfessionals({ forceRefresh = false } = {}) {
+    if (!forceRefresh && cachedProfessionals && Date.now() - cachedAt < CACHE_TTL_MS) {
+      return cachedProfessionals;
+    }
+
     let supabasePros = [];
 
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('professionals')
-          .select('*');
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('Supabase timeout') }), SUPABASE_TIMEOUT_MS)
+        );
+        const { data, error } = await Promise.race([
+          supabase.from('professionals').select('*'),
+          timeoutPromise,
+        ]);
 
         if (!error && data && data.length > 0) {
-          supabasePros = data.map((sp) => ({
-            id: sp.id,
-            name: sp.name,
-            profession: sp.specialty?.split(' - ')[0] || sp.specialty || 'Salud',
-            specialty: sp.specialty,
-            registry: sp.registry,
-            jurisdiction: sp.jurisdiction || 'Chaco',
-            isVerified: true,
-            price: Number(sp.price) || 25000,
-            rating: 5.0,
-            reviewsCount: 1,
-            location: sp.location || 'Resistencia, Chaco',
-            address: sp.address || 'Consultorio Profesional',
-            hasRampAccessibility: sp.has_ramp ?? true,
-            description: sp.description || 'Atención personalizada y seguimiento profesional.',
-            packages: [
-              { id: `pkg-${sp.id}-1`, sessions: 4, discountPercent: 10, title: 'Plan Recuperación (4 Sesiones)' },
-            ],
-            availableSlots: generateDefaultAvailableSlots(),
-          }));
+          supabasePros = data.map((sp) =>
+            normalizeProfessional({
+              id: sp.id,
+              name: sp.name,
+              profession: sp.specialty?.split(' - ')[0] || sp.specialty || 'Salud',
+              specialty: sp.specialty,
+              registry: sp.registry,
+              jurisdiction: sp.jurisdiction || 'Chaco',
+              isVerified: sp.is_verified ?? true,
+              verificationStatus: sp.is_verified === false ? 'pendiente' : 'verificado',
+              price: Number(sp.price) || 25000,
+              rating: 5.0,
+              reviewsCount: 1,
+              location: sp.location || 'Resistencia, Chaco',
+              address: sp.address || 'Consultorio Profesional',
+              hasRampAccessibility: sp.has_ramp ?? true,
+              hasElevator: sp.has_elevator ?? false,
+              hasAdaptedBathroom: sp.has_adapted_bathroom ?? false,
+              sessionDurationMinutes: sp.session_duration_minutes || 45,
+              description: sp.description || 'Atención personalizada y seguimiento profesional.',
+              packages: [
+                { id: `pkg-${sp.id}-1`, sessions: 4, discountPercent: 10, title: 'Plan Recuperación (4 Sesiones)' },
+              ],
+              availableSlots: generateDefaultAvailableSlots(),
+            })
+          );
         }
       } catch {
         // Fallback si Supabase no responde
       }
     }
 
-    const localCustomPros = getLocalCustomProfessionals();
+    const localCustomPros = getLocalCustomProfessionals().map(normalizeProfessional);
     
     // Si el usuario actual tiene su perfil guardado en 'salud_directa_pro_profile', aseguramos sincronizarlo
     try {
@@ -104,26 +145,32 @@ export const profesionalService = {
         if (parsed.name && parsed.isPublished !== false) {
           const exists = localCustomPros.some((p) => p.name?.toLowerCase() === parsed.name?.toLowerCase());
           if (!exists) {
-            localCustomPros.unshift({
-              id: parsed.id || 'pro-me',
-              name: parsed.name,
-              profession: parsed.profession || 'Kinesiología',
-              specialty: parsed.specialty || parsed.profession || 'Especialista',
-              registry: parsed.registry || 'MP 3412',
-              jurisdiction: parsed.jurisdiction || 'Chaco',
-              isVerified: parsed.verificationStatus === 'verificado',
-              price: Number(parsed.consultationPrice) || 25000,
-              rating: 5.0,
-              reviewsCount: 0,
-              location: parsed.city || 'Resistencia, Chaco',
-              address: parsed.address || 'Consultorio',
-              hasRampAccessibility: Boolean(parsed.hasRamp),
-              description: parsed.description || 'Atención profesional particular.',
-              packages: [
-                { id: 'pkg-custom-1', sessions: 4, discountPercent: 10, title: 'Plan Módulo (4 Sesiones)' },
-              ],
-              availableSlots: generateDefaultAvailableSlots(),
-            });
+            localCustomPros.unshift(
+              normalizeProfessional({
+                id: parsed.id || 'pro-me',
+                name: parsed.name,
+                profession: parsed.profession || 'Kinesiología',
+                specialty: parsed.specialty || parsed.profession || 'Especialista',
+                registry: parsed.registry || 'MP 3412',
+                jurisdiction: parsed.jurisdiction || 'Chaco',
+                verificationStatus: parsed.verificationStatus,
+                isVerified: parsed.verificationStatus === 'verificado',
+                price: Number(parsed.consultationPrice) || 25000,
+                rating: 5.0,
+                reviewsCount: 0,
+                location: parsed.city || 'Resistencia, Chaco',
+                address: parsed.address || 'Consultorio',
+                hasRampAccessibility: Boolean(parsed.hasRamp),
+                hasElevator: Boolean(parsed.hasElevator),
+                hasAdaptedBathroom: Boolean(parsed.hasAdaptedBathroom),
+                sessionDurationMinutes: Number(parsed.sessionDurationMinutes) || 45,
+                description: parsed.description || 'Atención profesional particular.',
+                packages: [
+                  { id: 'pkg-custom-1', sessions: 4, discountPercent: 10, title: 'Plan Módulo (4 Sesiones)' },
+                ],
+                availableSlots: generateDefaultAvailableSlots(),
+              })
+            );
           }
         }
       }
@@ -135,11 +182,29 @@ export const profesionalService = {
     const combined = [...localCustomPros, ...supabasePros];
     for (const seed of SEED_PROFESSIONALS) {
       if (!combined.some((p) => p.name?.toLowerCase() === seed.name?.toLowerCase())) {
-        combined.push(seed);
+        combined.push(normalizeProfessional(seed));
       }
     }
 
+    cachedProfessionals = combined;
+    cachedAt = Date.now();
     return combined;
+  },
+
+  /**
+   * Búsqueda con criterios combinables y medición de latencia (HU6 / RF-07 / RNF-05)
+   */
+  async buscarProfesionales(filters = {}) {
+    const startedAt = performance.now();
+    const all = await this.getProfessionals();
+    const results = filterAndSortProfessionals(all, filters);
+    const facets = extractSearchFacets(all);
+    return {
+      results,
+      totalAvailable: all.length,
+      facets,
+      elapsedMs: Math.max(1, Math.round(performance.now() - startedAt)),
+    };
   },
 
   /**
@@ -155,13 +220,14 @@ export const profesionalService = {
    */
   async registrarOActualizarProfesional(proData) {
     const id = proData.id || `pro-${Date.now()}`;
-    const formatted = {
+    const formatted = normalizeProfessional({
       id,
       name: proData.name,
       profession: proData.profession || proData.specialty || 'Kinesiología',
       specialty: proData.specialty || proData.profession || 'Kinesiología y Fisiatría',
       registry: proData.registry || 'MP 3412',
       jurisdiction: proData.jurisdiction || 'Chaco',
+      verificationStatus: proData.verificationStatus,
       isVerified: proData.verificationStatus ? proData.verificationStatus === 'verificado' : true,
       price: Number(proData.price || proData.consultationPrice) || 25000,
       rating: 5.0,
@@ -169,13 +235,16 @@ export const profesionalService = {
       location: proData.city || proData.location || 'Resistencia, Chaco',
       address: proData.address || 'Consultorio',
       hasRampAccessibility: Boolean(proData.hasRamp ?? proData.hasRampAccessibility),
+      hasElevator: Boolean(proData.hasElevator),
+      hasAdaptedBathroom: Boolean(proData.hasAdaptedBathroom),
+      sessionDurationMinutes: Number(proData.sessionDurationMinutes) || 45,
       description: proData.description || 'Atención médica y seguimiento individual.',
       packages: proData.packages || [
         { id: `pkg-${id}-1`, sessions: 4, discountPercent: 10, title: 'Plan Recuperación (4 Sesiones)' },
       ],
       availableSlots: proData.availableSlots || generateDefaultAvailableSlots(),
       isPublished: proData.isPublished !== false,
-    };
+    });
 
     // 1. Guardar en Supabase si está disponible
     if (supabase) {
@@ -193,7 +262,7 @@ export const profesionalService = {
       }
     }
 
-    // 2. Guardar en almacenamiento local persistente
+    // 2. Guardar en almacenamiento local persistente e invalidar caché de búsqueda
     const localList = getLocalCustomProfessionals();
     const index = localList.findIndex((p) => String(p.id) === String(id) || p.name?.toLowerCase() === formatted.name.toLowerCase());
     if (index >= 0) {
@@ -202,6 +271,8 @@ export const profesionalService = {
       localList.unshift(formatted);
     }
     saveLocalCustomProfessionals(localList);
+    cachedProfessionals = null;
+    cachedAt = 0;
 
     return formatted;
   },

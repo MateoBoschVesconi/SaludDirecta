@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, CheckCircle2, MapPin, Accessibility, Calendar, Sparkles } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Clock, MapPin, Accessibility, Calendar, Sparkles } from 'lucide-react';
 import { profesionalService } from '../../api/profesionalService';
 
 export default function ProfessionalProfilePage() {
@@ -64,6 +64,12 @@ export default function ProfessionalProfilePage() {
 
   const initials = pro.name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
 
+  const accessibilityDetails = [
+    pro.hasRampAccessibility && 'Rampa de acceso',
+    pro.hasElevator && 'Ascensor',
+    pro.hasAdaptedBathroom && 'Baño adaptado',
+  ].filter(Boolean);
+
   const handleStartBooking = () => {
     navigate(`/reservar/${pro.id}?plan=${selectedPlan}`);
   };
@@ -89,10 +95,17 @@ export default function ProfessionalProfilePage() {
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h1 className="font-bold text-2xl text-text-main">{pro.name}</h1>
-              <span className="badge-success">
-                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                Matrícula Verificada SISA
-              </span>
+              {pro.isVerified !== false ? (
+                <span className="badge-success">
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  Matrícula Verificada SISA
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-amber-900 font-semibold text-xs bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
+                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                  Verificación Pendiente
+                </span>
+              )}
             </div>
             <p className="text-text-muted text-sm font-medium mb-1">
               {pro.specialty} · {pro.registry} ({pro.jurisdiction})
@@ -104,15 +117,26 @@ export default function ProfessionalProfilePage() {
           </div>
         </div>
 
-        {/* Accesibilidad edilicia (HU4) */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 mb-6 flex items-center justify-between text-xs">
+        {/* Accesibilidad edilicia (HU4 / HU6) */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 mb-6 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 text-text-main font-medium">
             <Accessibility className="w-4 h-4 text-primary-dark" aria-hidden="true" />
             <span>Condiciones de accesibilidad edilicia:</span>
           </div>
-          <span className={`font-semibold ${pro.hasRampAccessibility ? 'text-emerald-700' : 'text-slate-600'}`}>
-            {pro.hasRampAccessibility ? '✓ Rampa de acceso y ascensor habilitados' : 'Sin rampa directa'}
-          </span>
+          {accessibilityDetails.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {accessibilityDetails.map((item) => (
+                <span
+                  key={item}
+                  className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"
+                >
+                  ✓ {item}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="font-semibold text-text-muted">Sin condiciones declaradas</span>
+          )}
         </div>
 
         {/* Descripción profesional */}
