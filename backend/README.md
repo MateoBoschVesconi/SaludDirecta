@@ -225,10 +225,19 @@ dotnet run --project src\SaludDirecta.Api
 ```
 Swagger: <http://localhost:5000/swagger> (es la URL que ya espera el frontend: `VITE_API_URL=http://localhost:5000/api`).
 
-### 3. Pruebas
+### 3. Pruebas y cobertura
 ```powershell
 dotnet test
 ```
+Para medir la cobertura:
+```powershell
+dotnet test --collect:"XPlat Code Coverage"
+dotnet tool install -g dotnet-reportgenerator-globaltool
+reportgenerator -reports:"tests\SaludDirecta.Tests\TestResults\*\coverage.cobertura.xml" -targetdir:coveragereport -reporttypes:TextSummary
+type coveragereport\Summary.txt
+```
+Última medición: 213 pruebas pasando, 97,8% de cobertura en las reglas de dominio (objetivo RNF-09: 70%).
+El detalle, la trazabilidad por historia de usuario y la lista de pruebas manuales están en [`docs/plan-de-pruebas.md`](docs/plan-de-pruebas.md).
 
 ## Notas de seguridad
 - `appsettings.Development.json` trae una clave JWT **solo para desarrollo**. En producción definí `Jwt__Key`
@@ -239,4 +248,4 @@ dotnet test
 - No se guardan datos clínicos (RNF-02).
 
 ## Próximos pasos del plan
-HU15 (cobertura de pruebas) y HU11 (pagos con Mercado Pago).
+HU11 (pagos con Mercado Pago).
