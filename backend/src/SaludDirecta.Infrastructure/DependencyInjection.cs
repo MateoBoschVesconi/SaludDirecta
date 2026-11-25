@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IAgendaRepository, AgendaRepository>();
         services.AddScoped<ITurnoRepository, TurnoRepository>();
         services.AddScoped<INotificacionRepository, NotificacionRepository>();
+        services.AddScoped<ICuentaRepository, CuentaRepository>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddSingleton(TimeProvider.System);

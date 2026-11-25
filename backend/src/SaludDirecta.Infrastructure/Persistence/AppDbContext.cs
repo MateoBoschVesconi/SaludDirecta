@@ -37,7 +37,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(u => u.Jurisdiccion).HasColumnName("jurisdiccion").HasMaxLength(100);
             e.Property(u => u.ConsentimientoAceptadoEn).HasColumnName("consentimiento_aceptado_en");
             e.Property(u => u.CreadoEn).HasColumnName("creado_en");
+            e.Property(u => u.EliminadoEn).HasColumnName("eliminado_en");
+            e.Ignore(u => u.EstaEliminado);
             e.HasIndex(u => u.Email).IsUnique();
+            // Las cuentas eliminadas (anonimizadas) no existen para el resto del sistema:
+            // no pueden iniciar sesión y un token viejo deja de servir.
+            e.HasQueryFilter(u => u.EliminadoEn == null);
         });
 
         modelBuilder.Entity<VerificacionMatricula>(e =>
