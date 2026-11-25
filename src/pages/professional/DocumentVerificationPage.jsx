@@ -227,8 +227,11 @@ export default function DocumentVerificationPage() {
 
         {/* Switch para simular resultados del OCR en defensas o pruebas */}
         <div className="flex items-center gap-2 bg-white border border-borderSubtle px-3 py-1.5 rounded-xl text-xs self-start sm:self-auto shadow-sm">
-          <span className="font-semibold text-text-muted">Modo de prueba OCR:</span>
+          <label htmlFor="ocr-sim-mode" className="font-semibold text-text-muted">
+            Modo de prueba OCR:
+          </label>
           <select
+            id="ocr-sim-mode"
             value={simulationMode}
             onChange={(e) => setSimulationMode(e.target.value)}
             className="bg-slate-50 border border-slate-300 text-xs font-bold rounded-lg px-2 py-1 text-primary-dark outline-none cursor-pointer"
@@ -276,6 +279,8 @@ export default function DocumentVerificationPage() {
             <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Tipo de comprobante">
               <button
                 type="button"
+                role="radio"
+                aria-checked={docType === 'credencial'}
                 onClick={() => setDocType('credencial')}
                 className={`p-3 rounded-xl border text-left transition-all ${
                   docType === 'credencial'
@@ -289,6 +294,8 @@ export default function DocumentVerificationPage() {
 
               <button
                 type="button"
+                role="radio"
+                aria-checked={docType === 'titulo'}
                 onClick={() => setDocType('titulo')}
                 className={`p-3 rounded-xl border text-left transition-all ${
                   docType === 'titulo'
@@ -470,7 +477,7 @@ export default function DocumentVerificationPage() {
                         <button
                           type="button"
                           onClick={handleSendToManualReview}
-                          className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
+                          className="w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-3 px-4 rounded-lg text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
                         >
                           <Clock className="w-4 h-4" aria-hidden="true" />
                           Derivar a Revisión Manual de Auditoría

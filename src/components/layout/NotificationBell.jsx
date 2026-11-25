@@ -8,6 +8,7 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -40,17 +41,27 @@ export default function NotificationBell() {
     };
   }, [isAuthenticated, fetchNotifications]);
 
-  // Cerrar dropdown al hacer click afuera
+  // Cerrar dropdown al hacer click afuera o presionar Escape (WCAG 2.1.1)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen]);
 
   const unreadCount = notifications.filter((n) => !n.leida).length;
@@ -72,6 +83,7 @@ export default function NotificationBell() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="relative p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-primary-dark"
@@ -93,10 +105,10 @@ export default function NotificationBell() {
           aria-label="Panel de Notificaciones"
         >
           <div className="flex items-center justify-between px-4 py-2 border-b border-borderSubtle">
-            <h3 className="text-sm font-bold text-text-main flex items-center gap-1.5">
+            <p className="text-sm font-bold text-text-main flex items-center gap-1.5">
               <Bell className="w-4 h-4 text-primary-dark" aria-hidden="true" />
               Notificaciones y Recordatorios
-            </h3>
+            </p>
             {unreadCount > 0 && (
               <span className="text-[11px] font-semibold text-primary-dark bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
                 {unreadCount} nuevas
@@ -130,13 +142,13 @@ export default function NotificationBell() {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-text-main">
+                        <p className="text-xs font-bold text-text-main">
                           {item.asunto || 'Aviso de Turno'}
-                        </h4>
+                        </p>
                         <p className="text-xs text-text-muted mt-0.5 leading-snug">
                           {item.mensaje}
                         </p>
-                        <span className="text-[10px] text-slate-400 mt-1 block">
+                        <span className="text-[10px] text-text-muted mt-1 block">
                           {item.creadoEn ? new Date(item.creadoEn).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'Reciente'}
                         </span>
                       </div>
@@ -146,6 +158,7 @@ export default function NotificationBell() {
                       <button
                         type="button"
                         onClick={(e) => handleMarkAsRead(item.id, e)}
+                        aria-label="Marcar notificación como leída"
                         className="text-[11px] text-primary-dark hover:text-sky-900 font-semibold p-1 rounded hover:bg-white flex items-center gap-0.5 flex-shrink-0"
                         title="Marcar como leída"
                       >

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ShieldCheck, User, Stethoscope, FileCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +28,17 @@ export default function RegisterPage() {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!showConsentModal) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowConsentModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showConsentModal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,16 +157,25 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-800 flex items-start gap-2 mb-4">
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-800 flex items-start gap-2 mb-4"
+          >
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Selector de Rol */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg mb-6 text-xs font-semibold" role="tablist">
+        <div
+          className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg mb-6 text-xs font-semibold"
+          role="tablist"
+          aria-label="Tipo de cuenta"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={role === 'paciente'}
             onClick={() => setRole('paciente')}
             className={`py-2 rounded-md flex items-center justify-center gap-1.5 transition-all ${
               role === 'paciente' ? 'bg-white text-text-main shadow-sm' : 'text-text-muted hover:text-text-main'
@@ -165,6 +185,8 @@ export default function RegisterPage() {
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={role === 'profesional'}
             onClick={() => setRole('profesional')}
             className={`py-2 rounded-md flex items-center justify-center gap-1.5 transition-all ${
               role === 'profesional' ? 'bg-white text-primary-dark shadow-sm' : 'text-text-muted hover:text-text-main'
@@ -342,6 +364,9 @@ export default function RegisterPage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="consent-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowConsentModal(false);
+          }}
         >
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
             <h2 id="consent-title" className="text-lg font-bold text-text-main mb-3 flex items-center gap-2">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Plus, 
@@ -63,6 +63,17 @@ export default function PackagesManagementPage() {
   // Estado para el modal de Crear / Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackageId, setEditingPackageId] = useState(null);
+
+  useEffect(() => {
+    if (!isModalOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   // Formulario del paquete
   const [formTitle, setFormTitle] = useState('');
@@ -353,6 +364,9 @@ export default function PackagesManagementPage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-package-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
         >
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-borderSubtle mb-4">
@@ -363,7 +377,7 @@ export default function PackagesManagementPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-text-main text-lg font-bold p-1"
+                className="text-text-muted hover:text-text-main text-lg font-bold p-1"
                 aria-label="Cerrar modal"
               >
                 ✕

@@ -193,11 +193,17 @@ export default function MyAppointmentsPage() {
       </div>
 
       {/* Pestañas de Navegación: Consultas vs Seguimiento de Paquetes (HU12) */}
-      <div className="flex items-center gap-2 mb-6 border-b border-borderSubtle" role="tablist">
+      <div
+        className="flex items-center gap-2 mb-6 border-b border-borderSubtle"
+        role="tablist"
+        aria-label="Secciones de turnos y tratamientos"
+      >
         <button
+          id="tab-turnos"
           type="button"
           role="tab"
           aria-selected={activeTab === 'turnos'}
+          aria-controls="panel-turnos"
           onClick={() => setActiveTab('turnos')}
           className={`pb-3 px-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'turnos'
@@ -213,9 +219,11 @@ export default function MyAppointmentsPage() {
         </button>
 
         <button
+          id="tab-paquetes"
           type="button"
           role="tab"
           aria-selected={activeTab === 'paquetes'}
+          aria-controls="panel-paquetes"
           onClick={() => setActiveTab('paquetes')}
           className={`pb-3 px-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'paquetes'
@@ -233,7 +241,7 @@ export default function MyAppointmentsPage() {
 
       {/* Pestaña 1: Turnos y Consultas */}
       {activeTab === 'turnos' && (
-        <>
+        <div id="panel-turnos" role="tabpanel" aria-labelledby="tab-turnos">
           {appointments.length === 0 ? (
             <div className="card text-center py-12">
               <Calendar className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />
@@ -310,12 +318,17 @@ export default function MyAppointmentsPage() {
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Pestaña 2: Seguimiento de Paquetes de Tratamiento (HU12) */}
       {activeTab === 'paquetes' && (
-        <div className="space-y-6" role="tabpanel" aria-label="Seguimiento de planes y paquetes de tratamiento">
+        <div
+          id="panel-paquetes"
+          role="tabpanel"
+          aria-labelledby="tab-paquetes"
+          className="space-y-6"
+        >
           {packages.length === 0 ? (
             <div className="card text-center py-12">
               <Package className="w-10 h-10 text-slate-400 mx-auto mb-3" aria-hidden="true" />

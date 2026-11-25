@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   CheckCircle2,
   Clock,
-  Calendar,
-  ChevronRight,
   Sparkles,
   AlertCircle,
   Stethoscope,
@@ -23,7 +21,6 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
   const completed = Number(packageData.completedSessions) || 0;
   const booked = Number(packageData.bookedSessions) || 0;
   const pendingToBook = Math.max(0, total - booked);
-  const pendingSessions = Math.max(0, total - completed);
 
   const percentage = Math.min(100, Math.round((completed / total) * 100));
   const isCompleted = completed >= total;
@@ -140,7 +137,7 @@ export default function PackageProgressBar({ packageData, onSessionAction }) {
                   ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950 font-bold'
                   : isSessionBooked
                     ? 'bg-sky-100/70 border-sky-300 text-sky-950 font-bold'
-                    : 'bg-white border-dashed border-slate-300 text-slate-400'
+                    : 'bg-white border-dashed border-slate-300 text-text-muted'
                   }`}
                 title={`Sesión ${sessionNum}: ${isSessionCompleted ? 'Cumplida' : isSessionBooked ? 'Agendada' : 'Pendiente'}`}
               >

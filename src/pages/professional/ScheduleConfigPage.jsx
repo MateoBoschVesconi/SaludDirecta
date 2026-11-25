@@ -304,6 +304,7 @@ export default function ScheduleConfigPage() {
                       <span className="font-semibold text-text-muted w-14">Mañana:</span>
                       <input
                         type="time"
+                        aria-label={`Inicio turno mañana ${day.label}`}
                         value={day.morningStart}
                         onChange={(e) => handleDayTimeChange(day.id, 'morningStart', e.target.value)}
                         className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold"
@@ -311,6 +312,7 @@ export default function ScheduleConfigPage() {
                       <span>a</span>
                       <input
                         type="time"
+                        aria-label={`Fin turno mañana ${day.label}`}
                         value={day.morningEnd}
                         onChange={(e) => handleDayTimeChange(day.id, 'morningEnd', e.target.value)}
                         className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold"
@@ -332,6 +334,7 @@ export default function ScheduleConfigPage() {
                         <>
                           <input
                             type="time"
+                            aria-label={`Inicio turno tarde ${day.label}`}
                             value={day.afternoonStart}
                             onChange={(e) => handleDayTimeChange(day.id, 'afternoonStart', e.target.value)}
                             className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold"
@@ -339,18 +342,19 @@ export default function ScheduleConfigPage() {
                           <span>a</span>
                           <input
                             type="time"
+                            aria-label={`Fin turno tarde ${day.label}`}
                             value={day.afternoonEnd}
                             onChange={(e) => handleDayTimeChange(day.id, 'afternoonEnd', e.target.value)}
                             className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-mono font-bold"
                           />
                         </>
                       ) : (
-                        <span className="text-[11px] text-slate-400 italic">Sin turno tarde</span>
+                        <span className="text-[11px] text-text-muted italic">Sin turno tarde</span>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 text-xs text-slate-400 italic flex items-center gap-1.5">
+                  <div className="flex-1 text-xs text-text-muted italic flex items-center gap-1.5">
                     <Ban className="w-4 h-4" aria-hidden="true" />
                     Día no laborable (no se habilitarán turnos)
                   </div>
@@ -434,7 +438,7 @@ export default function ScheduleConfigPage() {
           <div className="flex justify-end pt-1">
             <button
               type="submit"
-              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg text-xs transition-colors shadow-sm flex items-center gap-1.5"
+              className="bg-amber-700 hover:bg-amber-800 text-white font-semibold py-2 px-4 rounded-lg text-xs transition-colors shadow-sm flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar Bloqueo de Agenda
@@ -445,7 +449,7 @@ export default function ScheduleConfigPage() {
         {/* Lista de Ausencias Activas */}
         <div className="space-y-2">
           {schedule.absences.length === 0 ? (
-            <div className="text-xs text-slate-400 italic py-2 text-center">
+            <div className="text-xs text-text-muted italic py-2 text-center">
               No tenés bloqueos activos. Tu agenda se rige 100% por los días laborables regulares.
             </div>
           ) : (

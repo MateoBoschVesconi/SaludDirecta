@@ -27,7 +27,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Marco Legal y Privacidad</h3>
+            <h2 className="text-white font-semibold text-sm mb-3">Marco Legal y Privacidad</h2>
             <ul className="space-y-2 text-xs text-slate-400">
               <li>Cumplimiento estricto de la <strong>Ley 25.326</strong> de Protección de Datos Personales.</li>
               <li>No se almacena historia clínica ni diagnósticos médicos sensibles en la plataforma.</li>
@@ -36,14 +36,14 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold text-sm mb-3">Accesibilidad y Estándares</h3>
+            <h2 className="text-white font-semibold text-sm mb-3">Accesibilidad y Estándares</h2>
             <p className="text-slate-400 text-xs leading-relaxed">
               Diseñado bajo directrices de accesibilidad web <strong>WCAG 2.1 Nivel AA</strong> (RNF-07) para garantizar el acceso universal y la navegación por teclado.
             </p>
           </div>
         </div>
 
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-300 gap-4">
           <p>© {CURRENT_YEAR} Salud Directa — Proyecto TFI UTN-FRRe.</p>
           <p>Desarrollado con React & Tailwind CSS.</p>
         </div>

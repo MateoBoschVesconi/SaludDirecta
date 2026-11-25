@@ -23,6 +23,11 @@ export default function ProfessionalLayout() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-canvas">
+      {/* Enlace accesible para salto directo al contenido principal (WCAG 2.1 AA 2.4.1) */}
+      <a href="#professional-main" className="skip-link">
+        Saltar al contenido principal
+      </a>
+
       {/* Barra lateral / Sidebar */}
       <aside 
         className="w-full md:w-64 bg-white border-r border-borderSubtle flex flex-col justify-between"
@@ -79,7 +84,7 @@ export default function ProfessionalLayout() {
       </aside>
 
       {/* Contenido principal del panel */}
-      <main id="professional-main" className="flex-1 p-6 md:p-8 overflow-y-auto">
+      <main id="professional-main" tabIndex={-1} className="flex-1 p-6 md:p-8 overflow-y-auto outline-none">
         <Outlet />
       </main>
     </div>

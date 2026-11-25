@@ -397,7 +397,7 @@ export default function CheckoutPage() {
                     className="input-field font-mono text-sm tracking-widest pl-10"
                   />
                   <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" aria-hidden="true" />
-                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-text-muted bg-white px-1.5 py-0.5 rounded border border-slate-200">
                     {cardNumber.startsWith('4') ? 'VISA' : 'MC'}
                   </span>
                 </div>

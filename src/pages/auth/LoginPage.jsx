@@ -172,9 +172,15 @@ export default function LoginPage() {
         )}
 
         {/* Selector de Rol */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg mb-6 text-xs font-semibold" role="tablist">
+        <div
+          className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg mb-6 text-xs font-semibold"
+          role="tablist"
+          aria-label="Tipo de cuenta"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={role === 'paciente'}
             onClick={() => setRole('paciente')}
             className={`py-2 rounded-md flex items-center justify-center gap-1.5 transition-all ${
               role === 'paciente' ? 'bg-white text-text-main shadow-sm' : 'text-text-muted hover:text-text-main'
@@ -184,6 +190,8 @@ export default function LoginPage() {
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={role === 'profesional'}
             onClick={() => setRole('profesional')}
             className={`py-2 rounded-md flex items-center justify-center gap-1.5 transition-all ${
               role === 'profesional' ? 'bg-white text-primary-dark shadow-sm' : 'text-text-muted hover:text-text-main'

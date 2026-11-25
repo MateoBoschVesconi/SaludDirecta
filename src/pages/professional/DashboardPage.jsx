@@ -34,22 +34,28 @@ export default function DashboardPage() {
     if (list && list.length > 0) {
       return list;
     }
-    saveLocalAppointments(SEED_APPOINTMENTS);
-    return SEED_APPOINTMENTS;
+    return [];
   });
 
-  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me)
+  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me) o filtrar los del profesional logueado
   useEffect(() => {
     let isMounted = true;
     fetchMyAppointments().then((data) => {
-      if (isMounted && data && data.length > 0) {
-        setAppointments(data);
+      if (isMounted && data) {
+        if (user?.nombre) {
+          const filtered = data.filter(
+            (t) => t.professionalName?.toLowerCase() === user.nombre.toLowerCase()
+          );
+          setAppointments(filtered.length > 0 ? filtered : data);
+        } else {
+          setAppointments(data);
+        }
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user]);
 
   // Visualización del comprobante oficial (Criterio 2 - HU11: Disponible para ambas partes)
   const handleViewReceipt = (row) => {
@@ -293,6 +299,7 @@ export default function DashboardPage() {
                           type="button"
                           onClick={() => handleViewReceipt(row)}
                           className="text-text-muted hover:text-primary-dark p-1 rounded hover:bg-slate-200/60 transition-colors mr-1"
+                          aria-label="Ver comprobante de pago oficial"
                           title="Ver comprobante de pago oficial (Mercado Pago)"
                         >
                           <FileText className="w-4 h-4" aria-hidden="true" />
@@ -303,7 +310,7 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => handleStatusChange(row.id, 'cumplido')}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
                               title="Marcar consulta como realizada"
                             >
                               Cumplido
@@ -348,6 +355,42 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Seguimiento de Paquetes y Planes Prolongados (HU12 / RF-14) */}
+      <div className="card">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-borderSubtle">
+          <div>
+            <h2 className="text-base font-bold text-text-main flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary-dark" aria-hidden="true" />
+              Seguimiento de Tratamientos y Paquetes Activos (HU12)
+            </h2>
+            <p className="text-xs text-text-muted">
+              Evolución de sesiones contratadas y cumplimiento de planes prolongados
+            </p>
+          </div>
+          <Link
+            to="/profesional/paquetes"
+            className="text-xs text-primary-dark hover:text-sky-900 font-semibold flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-primary-dark p-1 rounded"
+          >
+            Configurar Planes y Paquetes <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+
+        {contractedPackages.length === 0 ? (
+          <div className="text-center py-8 text-text-muted text-xs">
+            No hay pacientes con paquetes de tratamiento en curso en este momento.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {contractedPackages.map((pkg) => (
+              <PackageProgressBar
+                key={pkg.id}
+                packageData={pkg}
+              />
+            ))}
           </div>
         )}
       </div>

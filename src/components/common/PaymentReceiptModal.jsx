@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Printer, 
@@ -15,6 +15,17 @@ import {
 
 export default function PaymentReceiptModal({ receipt, isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !receipt) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, receipt, onClose]);
 
   if (!isOpen || !receipt) return null;
 
@@ -62,6 +73,9 @@ ${receipt.cancellationPolicy}
       role="dialog"
       aria-modal="true"
       aria-labelledby="receipt-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-borderSubtle">
         {/* Cabecera del Modal */}
@@ -227,7 +241,7 @@ ${receipt.cancellationPolicy}
           </div>
 
           {/* Leyenda Legal y Protección de Datos (Ley 25.326 / RNF-02) */}
-          <div className="pt-2 border-t border-dashed border-borderSubtle text-[10px] text-slate-400 leading-tight text-center space-y-0.5">
+          <div className="pt-2 border-t border-dashed border-borderSubtle text-[10px] text-text-muted leading-tight text-center space-y-0.5">
             <p>Salud Directa S.A. · CUIT 30-71829401-4 · Comprobante emitido electrónicamente</p>
             <p>Este documento no contiene diagnóstico médico ni historia clínica (Ley 25.326).</p>
           </div>

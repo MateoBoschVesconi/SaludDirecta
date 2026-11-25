@@ -191,7 +191,7 @@ export default function BookingPage() {
       <div className="card mb-6">
         {/* Selector de Fecha */}
         <h2 className="font-semibold text-text-main text-sm mb-3">1. Elegí el día de atención</h2>
-        <div className="flex gap-2.5 mb-6 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="Fechas disponibles">
+        <div className="flex gap-2.5 mb-6 overflow-x-auto pb-2 scrollbar-none" role="group" aria-label="Fechas disponibles">
           {pro.availableSlots?.map((slot) => {
             const isSelected = selectedDate === slot.date;
             return (
@@ -246,6 +246,8 @@ export default function BookingPage() {
                 <button
                   key={time}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected}
                   disabled={isBooked}
                   onClick={() => !isBooked && setSelectedTime(time)}
                   className={`py-3 px-4 rounded-xl border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
@@ -255,7 +257,6 @@ export default function BookingPage() {
                       ? 'bg-sky-50 border-primary-dark text-primary-dark font-bold ring-2 ring-primary-dark shadow-sm'
                       : 'border-borderSubtle text-text-main hover:border-slate-400 bg-white'
                   }`}
-                  aria-pressed={isSelected}
                   title={isBooked ? 'Horario reservado por otro paciente' : 'Disponible'}
                 >
                   {isSelected && <Check className="w-4 h-4 text-primary-dark" aria-hidden="true" />}
