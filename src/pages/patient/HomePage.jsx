@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Search,
   Brain,
@@ -14,6 +14,7 @@ import {
   Smile,
   ArrowRight,
 } from 'lucide-react';
+import AiOrientationWidget from '../../components/patient/AiOrientationWidget';
 
 const PROFESSION_OPTIONS = [
   'Kinesiología',
@@ -35,6 +36,13 @@ export default function HomePage() {
   const [selectedProfession, setSelectedProfession] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#orientacion-ia') {
+      document.getElementById('orientacion-ia')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -153,6 +161,9 @@ export default function HomePage() {
           </Link>
         </div>
       </form>
+
+      {/* Orientación Asistida por IA en Lenguaje Natural (HU7 / RF-08) */}
+      <AiOrientationWidget />
 
       {/* Especialidades destacadas */}
       <section aria-labelledby="featured-specialties-heading" className="mb-12">

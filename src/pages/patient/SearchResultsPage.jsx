@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft,
   Search,
@@ -9,6 +9,7 @@ import {
   Zap,
   Scale,
   ArrowUpDown,
+  Sparkles,
 } from 'lucide-react';
 import { profesionalService } from '../../api/profesionalService';
 import ProfessionalCard from '../../components/ProfessionalCard';
@@ -645,6 +646,15 @@ export default function SearchResultsPage() {
                 <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
                 Limpiar filtros
               </button>
+              <div className="pt-2">
+                <Link
+                  to="/#orientacion-ia"
+                  className="text-primary-dark font-semibold text-xs hover:underline inline-flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary-dark rounded px-2 py-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                  ¿No sabés qué especialidad consultar? Probá la Orientación Asistida por IA
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-4" role="feed" aria-label="Lista de profesionales">
