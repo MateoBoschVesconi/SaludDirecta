@@ -1,7 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, Users, DollarSign, UserX, Download, CheckCircle, Clock, AlertTriangle, XCircle, Filter } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Calendar, 
+  Users, 
+  DollarSign, 
+  UserX, 
+  Download, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle, 
+  XCircle, 
+  Filter,
+  FileText
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getLocalAppointments, updateAppointmentStatus, saveLocalAppointments } from '../../api/appointmentService';
+import { getLocalAppointments, updateAppointmentStatus, saveLocalAppointments, fetchMyAppointments } from '../../api/appointmentService';
+import { getReceiptByPaymentId, createFallbackReceipt } from '../../api/paymentService';
+import PaymentReceiptModal from '../../components/common/PaymentReceiptModal';
 
 const SEED_APPOINTMENTS = [
   {
@@ -50,15 +64,48 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [filterStatus, setFilterStatus] = useState('todos');
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   const [appointments, setAppointments] = useState(() => {
     const list = getLocalAppointments();
     if (list && list.length > 0) {
       return list;
     }
-    saveLocalAppointments(SEED_APPOINTMENTS);
-    return SEED_APPOINTMENTS;
+    // Si es un usuario nuevo diferente a Mateo Gómez, inicia con lista limpia
+    return [];
   });
+
+  // Sincronizar turnos con Backend .NET 8 (/api/turnos/me) o filtrar los del profesional logueado
+  useEffect(() => {
+    let isMounted = true;
+    fetchMyAppointments().then((data) => {
+      if (isMounted && data) {
+        if (user?.nombre) {
+          // Filtrar turnos pertenecientes al profesional actual o mostrar los que coincidan con su nombre
+          const filtered = data.filter(
+            (t) => t.professionalName?.toLowerCase() === user.nombre.toLowerCase()
+          );
+          setAppointments(filtered.length > 0 ? filtered : data);
+        } else {
+          setAppointments(data);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  // Visualización del comprobante oficial (Criterio 2 - HU11: Disponible para ambas partes)
+  const handleViewReceipt = (row) => {
+    const existing = getReceiptByPaymentId(row.paymentId || row.id);
+    if (existing) {
+      setSelectedReceipt(existing);
+      return;
+    }
+
+    setSelectedReceipt(createFallbackReceipt(row));
+  };
 
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
@@ -284,50 +331,61 @@ export default function DashboardPage() {
                       {getStatusBadge(row.status)}
                     </td>
                     <td className="py-3 text-right">
-                      {row.status === 'confirmado' && (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(row.id, 'cumplido')}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
-                            title="Marcar consulta como realizada"
-                          >
-                            Cumplido
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(row.id, 'ausente')}
-                            className="bg-amber-700 hover:bg-amber-800 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
-                            title="Marcar paciente ausente sin aviso"
-                          >
-                            Ausente
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm('¿Desea cancelar este turno? Se liberará el cupo.')) {
-                                handleStatusChange(row.id, 'cancelado');
-                              }
-                            }}
-                            className="text-medical-error hover:text-red-700 text-[11px] font-bold px-2 py-1 rounded transition-colors"
-                            title="Cancelar turno"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      )}
-                      {row.status === 'solicitado' && (
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(row.id, 'confirmado')}
-                          className="bg-primary-dark hover:bg-sky-900 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
+                          onClick={() => handleViewReceipt(row)}
+                          className="text-text-muted hover:text-primary-dark p-1 rounded hover:bg-slate-200/60 transition-colors mr-1"
+                          title="Ver comprobante de pago oficial (Mercado Pago)"
                         >
-                          Confirmar
+                          <FileText className="w-4 h-4" aria-hidden="true" />
                         </button>
-                      )}
-                      {(row.status === 'cumplido' || row.status === 'ausente' || row.status === 'cancelado') && (
-                        <span className="text-xs text-text-muted italic">Sin acciones</span>
-                      )}
+
+                        {row.status === 'confirmado' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(row.id, 'cumplido')}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
+                              title="Marcar consulta como realizada"
+                            >
+                              Cumplido
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(row.id, 'ausente')}
+                              className="bg-amber-700 hover:bg-amber-800 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
+                              title="Marcar paciente ausente sin aviso"
+                            >
+                              Ausente
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm('¿Desea cancelar este turno? Se liberará el cupo.')) {
+                                  handleStatusChange(row.id, 'cancelado');
+                                }
+                              }}
+                              className="text-medical-error hover:text-red-700 text-[11px] font-bold px-2 py-1 rounded transition-colors"
+                              title="Cancelar turno"
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                        {row.status === 'solicitado' && (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusChange(row.id, 'confirmado')}
+                            className="bg-primary-dark hover:bg-sky-900 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors"
+                          >
+                            Confirmar
+                          </button>
+                        )}
+                        {(row.status === 'cumplido' || row.status === 'ausente' || row.status === 'cancelado') && (
+                          <span className="text-xs text-text-muted italic">Cerrado</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -336,6 +394,13 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Visor de Comprobante Oficial (Criterio 2 - HU11) */}
+      <PaymentReceiptModal
+        receipt={selectedReceipt}
+        isOpen={Boolean(selectedReceipt)}
+        onClose={() => setSelectedReceipt(null)}
+      />
     </div>
   );
 }

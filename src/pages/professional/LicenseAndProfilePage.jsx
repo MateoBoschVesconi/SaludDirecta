@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  Building2, 
-  DollarSign, 
-  Accessibility, 
-  Save, 
-  Eye, 
-  ShieldCheck, 
-  MapPin, 
+import {
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Building2,
+  DollarSign,
+  Accessibility,
+  Save,
+  Eye,
+  ShieldCheck,
+  MapPin,
   Sparkles,
   Info
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { profesionalService } from '../../api/profesionalService';
 
 const DEFAULT_PROFILE = {
   profession: 'Kinesiología y Fisiatría',
@@ -34,24 +35,38 @@ const DEFAULT_PROFILE = {
 };
 
 export default function LicenseAndProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   // Inicialización directa (lazy state initializer) evitando set-state-in-effect
   const [formData, setFormData] = useState(() => {
+    let saved = null;
+    try {
+      const raw = localStorage.getItem('salud_directa_pro_profile');
+      if (raw) saved = JSON.parse(raw);
+    } catch {
+      // Ignorar error
+    }
+
+    // Si el usuario logueado es diferente al guardado en caché o es nuevo, priorizar datos del usuario actual
     const base = {
       ...DEFAULT_PROFILE,
-      name: user?.nombre || 'Lic. Mateo Gómez',
+      name: user?.nombre || saved?.name || 'Profesional de la Salud',
+      registry: user?.matricula || saved?.registry || 'MP 3412',
+      profession: user?.profesion || saved?.profession || DEFAULT_PROFILE.profession,
+      specialty: user?.profesion || saved?.specialty || DEFAULT_PROFILE.specialty,
+      jurisdiction: user?.jurisdiccion || saved?.jurisdiction || DEFAULT_PROFILE.jurisdiction,
     };
-    try {
-      const saved = localStorage.getItem('salud_directa_pro_profile');
-      return saved ? { ...base, ...JSON.parse(saved) } : base;
-    } catch {
-      return base;
+
+    if (saved && (!user?.nombre || saved.name === user.nombre)) {
+      return { ...base, ...saved };
     }
+
+    return base;
   });
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -61,7 +76,7 @@ export default function LicenseAndProfilePage() {
     setSavedSuccess(false);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -78,6 +93,45 @@ export default function LicenseAndProfilePage() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
+    }
+
+    try {
+      setIsSaving(true);
+      // 1. Persistir en Backend .NET 8 (HU4 - Guardar perfil y honorario con auditoría)
+      await profesionalService.guardarPerfil({
+        especialidad: formData.specialty,
+        descripcion: formData.description,
+        direccion: formData.address,
+        ciudad: formData.city,
+        telefono: formData.phone,
+        duracionSesionMinutos: formData.sessionDurationMinutes,
+        tieneRampa: formData.hasRamp,
+        tieneAscensor: formData.hasElevator,
+        tieneBanoAdaptado: formData.hasAdaptedBathroom,
+      });
+
+      if (formData.consultationPrice) {
+        await profesionalService.cambiarHonorario(formData.consultationPrice);
+      }
+    } catch {
+      // Si la API no está iniciada, continúa guardando localmente
+    } finally {
+      setIsSaving(false);
+    }
+
+    // 2. Guardar y publicar profesional para que aparezca en el buscador y reservas
+    await profesionalService.registrarOActualizarProfesional({
+      ...formData,
+      price: formData.consultationPrice,
+    });
+
+    // 3. Actualizar los datos del usuario en la sesión activa
+    if (updateUser) {
+      updateUser({
+        nombre: formData.name,
+        profesion: formData.profession,
+        matricula: formData.registry,
+      });
     }
 
     localStorage.setItem('salud_directa_pro_profile', JSON.stringify(formData));
@@ -152,11 +206,10 @@ export default function LicenseAndProfilePage() {
           <button
             type="button"
             onClick={() => handleChange('isPublished', !formData.isPublished)}
-            className={`text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${
-              formData.isPublished
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                : 'bg-slate-200 text-slate-700 border border-slate-300'
-            }`}
+            className={`text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${formData.isPublished
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              : 'bg-slate-200 text-slate-700 border border-slate-300'
+              }`}
           >
             {formData.isPublished ? '● Público y Activo' : '○ En Pausa (Oculto)'}
           </button>
@@ -164,7 +217,7 @@ export default function LicenseAndProfilePage() {
       </div>
 
       {savedSuccess && (
-        <div 
+        <div
           className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-4 flex items-center gap-3 shadow-sm animate-in slide-in-from-top-2"
           role="status"
           aria-live="polite"
@@ -202,6 +255,21 @@ export default function LicenseAndProfilePage() {
 
             {/* Banner condicional de verificación */}
             {renderVerificationBadge()}
+
+            <div>
+              <label htmlFor="input-fullname" className="block text-xs font-bold text-text-main uppercase tracking-wider mb-1">
+                Nombre Completo y Título *
+              </label>
+              <input
+                id="input-fullname"
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="Ej: Lic. Mateo Bosch"
+                className="input-field"
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -428,10 +496,11 @@ export default function LicenseAndProfilePage() {
           {/* Botón de Guardado Principal */}
           <button
             type="submit"
+            disabled={isSaving}
             className="btn-primary text-base py-3.5 shadow-md flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" aria-hidden="true" />
-            Guardar y Actualizar Perfil Público
+            {isSaving ? 'Guardando en Servidor...' : 'Guardar y Actualizar Perfil Público'}
           </button>
         </form>
 

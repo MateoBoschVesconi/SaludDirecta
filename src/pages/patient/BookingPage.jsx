@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, ChevronRight, Check, CalendarOff } from 'lucide-react';
-import { PROFESSIONALS } from '../../data/mockData';
+import { profesionalService } from '../../api/profesionalService';
 import { getBookedSlots } from '../../api/appointmentService';
 
 export default function BookingPage() {
@@ -9,13 +9,45 @@ export default function BookingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const pro = PROFESSIONALS.find((p) => p.id === Number(id));
+  const [pro, setPro] = useState(null);
+  const [loadingPro, setLoadingPro] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    profesionalService.getProfessionalById(id).then((found) => {
+      if (isMounted) {
+        setPro(found);
+        setLoadingPro(false);
+        if (found?.availableSlots?.[0]?.date) {
+          setSelectedDate(found.availableSlots[0].date);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
   const planId = searchParams.get('plan') || 'individual';
+  const packageContractId = searchParams.get('packageContractId');
+
+  // Paquete contratado previamente si el paciente agenda una sesión subsecuente (HU12)
+  const existingContract = useMemo(() => {
+    if (!packageContractId) return null;
+    try {
+      const all = JSON.parse(localStorage.getItem('salud_directa_paquetes_contratados') || '[]');
+      return all.find((p) => p.id === packageContractId) || null;
+    } catch {
+      return null;
+    }
+  }, [packageContractId]);
+
+  const isContractLimitReached = existingContract && existingContract.bookedSessions >= existingContract.totalSessions;
 
   // Calcular precio según el plan seleccionado (soporte dinámico para paquetes creados por el profesional)
   const availablePackages = useMemo(() => {
     if (!pro) return [];
-    if (pro.id === 1) {
+    if (String(pro.id) === '1' || String(pro.id) === 'pro-me') {
       try {
         const saved = localStorage.getItem('salud_directa_pro_packages');
         if (saved) return JSON.parse(saved);
@@ -26,20 +58,28 @@ export default function BookingPage() {
     return pro.packages || [];
   }, [pro]);
 
-  const [selectedDate, setSelectedDate] = useState(pro?.availableSlots?.[0]?.date || '');
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Consultar franjas ya ocupadas en tiempo real para control de concurrencia (Criterio 1 - HU9)
   useEffect(() => {
     if (!pro || !selectedDate) return;
     let isMounted = true;
+    setLoadingSlots(true);
 
-    getBookedSlots(pro.name, selectedDate).then((slots) => {
-      if (isMounted) {
-        setBookedSlots(slots);
-      }
-    });
+    getBookedSlots(pro.name, selectedDate)
+      .then((slots) => {
+        if (isMounted) {
+          setBookedSlots(slots);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingSlots(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -48,7 +88,7 @@ export default function BookingPage() {
 
   // Verificar si la fecha seleccionada está bloqueada por ausencia del profesional (Criterio 2 - HU8)
   const activeAbsence = useMemo(() => {
-    if (pro?.id !== 1 || !selectedDate) return null;
+    if ((String(pro?.id) !== '1' && String(pro?.id) !== 'pro-me') || !selectedDate) return null;
     try {
       const savedSchedule = localStorage.getItem('salud_directa_pro_schedule');
       if (savedSchedule) {
@@ -63,6 +103,15 @@ export default function BookingPage() {
     return null;
   }, [pro, selectedDate]);
 
+  if (loadingPro) {
+    return (
+      <div className="max-w-2xl mx-auto mt-16 px-4 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto mb-3" aria-hidden="true"></div>
+        <p className="text-sm text-text-muted">Cargando disponibilidad del profesional...</p>
+      </div>
+    );
+  }
+
   if (!pro) {
     return (
       <div className="max-w-2xl mx-auto mt-12 px-4 text-center">
@@ -72,23 +121,36 @@ export default function BookingPage() {
   }
 
   const selectedPackage = availablePackages?.find((p) => p.id === planId);
-  const planTitle = selectedPackage ? selectedPackage.title : 'Consulta Individual';
-  const totalAmount = selectedPackage
+  const planTitle = existingContract
+    ? `${existingContract.title} (Sesión ${existingContract.bookedSessions + 1} de ${existingContract.totalSessions})`
+    : selectedPackage
+    ? selectedPackage.title
+    : 'Consulta Individual';
+
+  // Si se trata de agendar una sesión de un plan ya contratado, no se cobra nuevamente
+  const totalAmount = existingContract
+    ? 0
+    : selectedPackage
     ? (selectedPackage.totalPrice || Math.round(pro.price * selectedPackage.sessions * (1 - selectedPackage.discountPercent / 100)))
     : pro.price;
 
   const currentSlotGroup = pro.availableSlots?.find((s) => s.date === selectedDate);
 
   const handleProceed = () => {
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedDate || !selectedTime || isContractLimitReached) return;
     const checkoutState = {
       professionalId: pro.id,
       professionalName: pro.name,
       specialty: pro.specialty,
+      registry: pro.registry || 'MP 3412',
+      jurisdiction: pro.jurisdiction || 'Chaco',
       planTitle,
       selectedDate,
       selectedTime,
       totalAmount,
+      packageContractId: existingContract?.id,
+      packageId: selectedPackage?.id || existingContract?.packageId,
+      totalSessions: selectedPackage?.sessions || existingContract?.totalSessions,
     };
     navigate('/checkout', { state: checkoutState });
   };
@@ -110,6 +172,19 @@ export default function BookingPage() {
           Turno con <strong>{pro.name}</strong> · {planTitle}
         </p>
       </div>
+
+      {/* Alerta de bloqueo por límite de sesiones contratadas alcanzado (Criterio 3 - HU12) */}
+      {isContractLimitReached && (
+        <div className="bg-red-50 border border-red-300 text-red-900 rounded-xl p-4 mb-6 text-xs flex items-start gap-3 shadow-sm" role="alert">
+          <CalendarOff className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <strong className="font-bold text-sm block">Límite de Sesiones Contratadas Alcanzado (HU12):</strong>
+            <p className="mt-0.5 leading-relaxed">
+              Ya has reservado la totalidad de las {existingContract.totalSessions} sesiones contratadas para este plan. No es posible agendar sesiones adicionales bajo este paquete.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="card mb-6">
         {/* Selector de Fecha */}
@@ -207,9 +282,9 @@ export default function BookingPage() {
 
         <button
           onClick={handleProceed}
-          disabled={!selectedDate || !selectedTime || Boolean(activeAbsence)}
+          disabled={!selectedDate || !selectedTime || Boolean(activeAbsence) || Boolean(isContractLimitReached)}
           className={`${
-            !selectedDate || !selectedTime || Boolean(activeAbsence)
+            !selectedDate || !selectedTime || Boolean(activeAbsence) || Boolean(isContractLimitReached)
               ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
               : 'bg-primary-dark text-white hover:bg-sky-800 shadow-sm'
           } px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2`}

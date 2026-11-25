@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ShieldCheck, User, Stethoscope, FileCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { authService, saveRegisteredUser } from '../../api/authService';
+import { profesionalService } from '../../api/profesionalService';
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -25,28 +27,101 @@ export default function RegisterPage() {
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!consentAccepted) {
       setError('Debes aceptar expresamente el consentimiento informado y los términos de tratamiento de datos personales (Ley 25.326).');
       return;
     }
 
-    const newUser = {
-      id: role === 'profesional' ? 'pro-' + Date.now() : 'pac-' + Date.now(),
-      nombre,
-      email,
-      telefono,
-      rol: role,
-      profesion: role === 'profesional' ? profesion : undefined,
-      matricula: role === 'profesional' ? matricula : undefined,
-      jurisdiccion: role === 'profesional' ? jurisdiccion : undefined,
-      consentAcceptedAt: new Date().toISOString(),
-    };
+    try {
+      setIsSubmitting(true);
+      setError('');
+      // 1. Registro integrado con el Backend .NET 8 (HU1)
+      const data = await authService.register({
+        nombre,
+        email,
+        telefono,
+        password,
+        rol: role,
+        profesion: role === 'profesional' ? profesion : null,
+        matricula: role === 'profesional' ? matricula : null,
+        jurisdiccion: role === 'profesional' ? jurisdiccion : null,
+        consentimientoAceptado: true,
+      });
 
-    login(newUser, 'jwt_token_registered_' + Date.now());
-    navigate(role === 'profesional' ? '/profesional/matricula' : '/');
+      // Si es profesional, sincronizarlo directamente para que esté disponible en búsquedas y turnos
+      if (role === 'profesional') {
+        await profesionalService.registrarOActualizarProfesional({
+          name: nombre,
+          profession: profesion,
+          specialty: profesion,
+          registry: matricula,
+          jurisdiction: jurisdiccion,
+          price: 25000,
+          location: 'Resistencia, Chaco',
+        });
+      }
+
+      // Guardar usuario en registro local para que pueda volver a iniciar sesión con sus datos exactos
+      saveRegisteredUser({
+        id: data.user?.id || (role === 'profesional' ? 'pro-' + Date.now() : 'pac-' + Date.now()),
+        nombre,
+        email,
+        telefono,
+        password,
+        rol: role,
+        profesion: role === 'profesional' ? profesion : undefined,
+        matricula: role === 'profesional' ? matricula : undefined,
+        jurisdiccion: role === 'profesional' ? jurisdiccion : undefined,
+      });
+
+      login(data.user, data.token);
+      navigate(role === 'profesional' ? '/profesional/matricula' : '/');
+    } catch (err) {
+      if (err.response?.status === 400 || err.response?.status === 409) {
+        setError(err.response.data?.mensaje || err.response.data?.title || 'No se pudo completar el registro. Verificá los datos.');
+      } else {
+        // 2. Fallback de desarrollo si la API local no está corriendo
+        console.warn('Backend API no disponible, registrando en modo desarrollo:', err.message);
+        const newUser = {
+          id: role === 'profesional' ? 'pro-' + Date.now() : 'pac-' + Date.now(),
+          nombre,
+          email,
+          telefono,
+          rol: role,
+          profesion: role === 'profesional' ? profesion : undefined,
+          matricula: role === 'profesional' ? matricula : undefined,
+          jurisdiccion: role === 'profesional' ? jurisdiccion : undefined,
+          consentAcceptedAt: new Date().toISOString(),
+        };
+
+        if (role === 'profesional') {
+          await profesionalService.registrarOActualizarProfesional({
+            id: newUser.id,
+            name: nombre,
+            profession: profesion,
+            specialty: profesion,
+            registry: matricula,
+            jurisdiction: jurisdiccion,
+            price: 25000,
+            location: 'Resistencia, Chaco',
+          });
+        }
+
+        saveRegisteredUser({
+          ...newUser,
+          password,
+        });
+
+        login(newUser, 'jwt_token_registered_' + Date.now());
+        navigate(role === 'profesional' ? '/profesional/matricula' : '/');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -237,8 +312,8 @@ export default function RegisterPage() {
             </label>
           </div>
 
-          <button type="submit" className="btn-primary mt-2">
-            Completar Registro
+          <button type="submit" disabled={isSubmitting} className="btn-primary mt-2">
+            {isSubmitting ? 'Registrando...' : 'Completar Registro'}
           </button>
         </form>
 

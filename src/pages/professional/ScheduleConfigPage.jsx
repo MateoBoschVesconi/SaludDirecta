@@ -11,6 +11,7 @@ import {
   CalendarOff,
   Info
 } from 'lucide-react';
+import { agendaService } from '../../api/agendaService';
 
 const DAYS_OF_WEEK = [
   { id: 'lun', label: 'Lunes', defaultActive: true, morningStart: '08:30', morningEnd: '12:30', afternoonActive: true, afternoonStart: '16:00', afternoonEnd: '20:00' },
@@ -107,7 +108,15 @@ export default function ScheduleConfigPage() {
     setSavedSuccess(false);
   };
 
-  const handleRemoveAbsence = (id) => {
+  const handleRemoveAbsence = async (id) => {
+    try {
+      if (id.length > 20) {
+        await agendaService.eliminarAusencia(id);
+      }
+    } catch {
+      // Fallback
+    }
+
     setSchedule((prev) => ({
       ...prev,
       absences: prev.absences.filter((a) => a.id !== id)
@@ -115,7 +124,31 @@ export default function ScheduleConfigPage() {
     setSavedSuccess(false);
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
+    try {
+      // Mapear días a franjas .NET 8 (0 = domingo, 1 = lunes, ..., 6 = sábado)
+      const DAY_MAP = { lun: 1, mar: 2, mie: 3, jue: 4, vie: 5, sab: 6 };
+      const franjas = [];
+      schedule.days.forEach((d) => {
+        const diaSemana = DAY_MAP[d.id];
+        if (d.defaultActive && diaSemana !== undefined) {
+          franjas.push({ diaSemana, desde: d.morningStart, hasta: d.morningEnd });
+          if (d.afternoonActive) {
+            franjas.push({ diaSemana, desde: d.afternoonStart, hasta: d.afternoonEnd });
+          }
+        }
+      });
+
+      // 1. Persistir en Backend .NET 8 (HU8)
+      await agendaService.guardarAgenda({
+        franjas,
+        descansoEntreSesionesMinutos: schedule.breakBetweenSessionsMinutes,
+        anticipacionMinimaHoras: schedule.minAdvanceNoticeHours,
+      });
+    } catch {
+      // Continuar con guardado local si la API está offline
+    }
+
     localStorage.setItem('salud_directa_pro_schedule', JSON.stringify(schedule));
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 4000);

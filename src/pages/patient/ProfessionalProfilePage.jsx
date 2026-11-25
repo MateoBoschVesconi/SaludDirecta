@@ -1,17 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, CheckCircle2, MapPin, Accessibility, Calendar, Sparkles } from 'lucide-react';
-import { PROFESSIONALS } from '../../data/mockData';
+import { profesionalService } from '../../api/profesionalService';
 
 export default function ProfessionalProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const pro = PROFESSIONALS.find((p) => p.id === Number(id));
+  const [pro, setPro] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    profesionalService.getProfessionalById(id).then((found) => {
+      if (isMounted) {
+        setPro(found);
+        setLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   // Cargar paquetes dinámicos configurados por el profesional si existen
   const availablePackages = React.useMemo(() => {
     if (!pro) return [];
-    if (pro.id === 1) {
+    if (String(pro.id) === '1' || String(pro.id) === 'pro-me') {
       try {
         const saved = localStorage.getItem('salud_directa_pro_packages');
         if (saved) {
@@ -26,6 +40,15 @@ export default function ProfessionalProfilePage() {
   }, [pro]);
 
   const [selectedPlan, setSelectedPlan] = useState('individual'); // 'individual' o package id
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto mt-16 px-4 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto mb-3" aria-hidden="true"></div>
+        <p className="text-sm text-text-muted">Cargando perfil del profesional...</p>
+      </div>
+    );
+  }
 
   if (!pro) {
     return (

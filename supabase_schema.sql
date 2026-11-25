@@ -49,6 +49,19 @@ create policy "Lectura publica de profesionales"
   to anon, authenticated
   using (true);
 
+-- Permitir crear o actualizar perfiles de profesionales
+create policy "Permitir crear profesionales"
+  on public.professionals
+  for insert
+  to anon, authenticated
+  with check (true);
+
+create policy "Permitir actualizar profesionales"
+  on public.professionals
+  for update
+  to anon, authenticated
+  using (true);
+
 -- Permitir a los pacientes crear reservas de turnos
 create policy "Permitir crear turnos"
   on public.appointments
