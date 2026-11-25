@@ -170,13 +170,37 @@ El sistema avisa a las dos partes cuando algo pasa con un turno, y manda un reco
 - El canal de salida es un Adapter (`IEnviadorNotificaciones`). Hoy está el simulado (`EnviadorEnRegistro`), que **muestra el aviso en la consola de la API** en lugar de mandar un mail. Para mandar mails o mensajes reales se escribe otra clase que implemente esa interfaz y se registra en `DependencyInjection.cs`, sin tocar la lógica de turnos.
 - El intervalo se puede cambiar con `Notificaciones:IntervaloSegundos` (entre 5 y 3600, por defecto 60).
 
+### HU14 – Seguridad y privacidad
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/cuenta/me/datos` | Derecho de acceso: devuelve todo lo que el sistema guarda sobre mí (cuenta, perfil, turnos, avisos). |
+| DELETE | `/api/cuenta/me` | Derecho de supresión: elimina mi cuenta. Cuerpo: `{ "password": "..." }`. |
+
+Al eliminar la cuenta:
+- Se pide la contraseña para confirmar (si no coincide, `400`).
+- Los turnos activos (solicitados o confirmados) se cancelan y la otra parte recibe el aviso. Los turnos ya cumplidos se conservan como historial.
+- Se borran el perfil, la agenda, las ausencias, el historial de honorarios, las verificaciones de matrícula y las notificaciones. Las prestaciones quedan dadas de baja.
+- La cuenta queda anonimizada (nombre `Usuario eliminado`, correo y teléfono borrados) y el token anterior deja de servir (`401`). El correo original queda libre para registrarse de nuevo.
+- La bitácora conserva el evento `ELIMINACION_CUENTA` sin datos personales.
+
+Otras medidas:
+- **Bitácora inmutable (RNF-04):** la tabla `auditoria` rechaza `UPDATE`, `DELETE` y `TRUNCATE` mediante triggers (`sql/006_privacidad.sql`).
+- **Límite de intentos:** `register` y `login` aceptan 10 pedidos por minuto por IP (configurable con `Seguridad:IntentosPorMinuto`). Al pasarse responde `429`.
+- **Cabeceras de seguridad:** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Cache-Control: no-store` en las respuestas de `/api`.
+- **TLS (RNF-03):** en producción la API fuerza HTTPS y HSTS. Para probar con HTTPS en desarrollo:
+  ```powershell
+  dotnet dev-certs https --trust
+  dotnet run --project src\SaludDirecta.Api --urls "https://localhost:5001;http://localhost:5000"
+  ```
+- **Sin datos clínicos (RNF-02):** hay una prueba automática que falla si alguna entidad agrega propiedades de diagnóstico, síntomas, medicación o historia clínica.
+
 ## Puesta en marcha (Windows / PowerShell)
 
 Requisitos: **.NET 8 SDK** (`dotnet --version` debe empezar con 8) y una base PostgreSQL.
 
 ### 1. Base de datos
 
-Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql`, `003_perfiles.sql`, `004_agenda_turnos.sql` y `005_notificaciones.sql`
+Ejecutá los scripts de `sql/` **en orden**: `001_usuarios.sql`, `002_verificaciones.sql`, `003_perfiles.sql`, `004_agenda_turnos.sql`, `005_notificaciones.sql` y `006_privacidad.sql`
 (en pgAdmin: clic derecho en la base → Query Tool → abrir archivo → F5).
 
 **A) PostgreSQL instalado en tu PC.** `appsettings.Development.json` espera usuario `postgres`,
@@ -215,5 +239,4 @@ dotnet test
 - No se guardan datos clínicos (RNF-02).
 
 ## Próximos pasos del plan
-HU14 (middleware de auditoría general y supresión de datos), HU9 (motor de turnos con control de concurrencia),
-HU11 (pagos con Mercado Pago).
+HU15 (cobertura de pruebas) y HU11 (pagos con Mercado Pago).

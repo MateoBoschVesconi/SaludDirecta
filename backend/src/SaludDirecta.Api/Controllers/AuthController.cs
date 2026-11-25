@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SaludDirecta.Application.Auth;
 
 namespace SaludDirecta.Api.Controllers;
@@ -11,6 +12,7 @@ public class AuthController(AuthService auth) : ControllerBase
     /// <summary>Registra un paciente o un profesional (exige consentimiento informado).</summary>
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> Registrar([FromBody] RegistroRequest request, CancellationToken ct)
     {
@@ -21,6 +23,7 @@ public class AuthController(AuthService auth) : ControllerBase
     /// <summary>Inicia sesión y devuelve un token JWT.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct) =>
         Ok(await auth.LoginAsync(request, ct));
