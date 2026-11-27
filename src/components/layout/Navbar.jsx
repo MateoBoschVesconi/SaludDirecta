@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, User, LogOut, Calendar, Stethoscope, ShieldCheck } from 'lucide-react';
+import { User, LogOut, Calendar, Stethoscope, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, isProfessional } = useAuth();
@@ -23,11 +24,17 @@ export default function Navbar() {
           className="flex items-center gap-2 group rounded-md p-1 focus-visible:ring-2 focus-visible:ring-primary-dark"
           aria-label="Salud Directa - Ir a la página de inicio"
         >
-          <div className="text-primary-dark font-extrabold text-2xl flex items-center tracking-tight">
-            <span className="bg-primary-dark text-white p-1 rounded-md mr-1.5 flex items-center justify-center">
-              <Plus className="w-5 h-5" strokeWidth={3} aria-hidden="true" />
+          <div className="font-extrabold text-2xl flex items-center gap-2 tracking-tight">
+            <img
+              src={logoIsotipo}
+              alt=""
+              aria-hidden="true"
+              className="w-9 h-9 object-contain flex-shrink-0"
+            />
+            <span>
+              <span className="text-[#0F172A]">SALUD</span>
+              <span className="text-primary-dark">DIRECTA</span>
             </span>
-            SALUD<span className="font-semibold text-text-main ml-0.5">DIRECTA</span>
           </div>
           <span className="hidden lg:inline-block ml-3 text-xs text-text-muted border-l border-borderSubtle pl-3 font-medium">
             Atención Particular & Matrículas Verificadas

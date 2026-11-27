@@ -4,7 +4,6 @@ import {
   Printer, 
   Copy, 
   CheckCircle2, 
-  ShieldCheck, 
   Calendar, 
   User, 
   Stethoscope, 
@@ -12,6 +11,7 @@ import {
   Info,
   Check
 } from 'lucide-react';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 export default function PaymentReceiptModal({ receipt, isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -81,9 +81,12 @@ ${receipt.cancellationPolicy}
         {/* Cabecera del Modal */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-borderSubtle bg-slate-50/80">
           <div className="flex items-center gap-2">
-            <div className="bg-primary-dark text-white p-1 rounded-md flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" aria-hidden="true" />
-            </div>
+            <img
+              src={logoIsotipo}
+              alt=""
+              aria-hidden="true"
+              className="w-8 h-8 object-contain flex-shrink-0"
+            />
             <div>
               <h2 id="receipt-title" className="text-sm font-bold text-text-main">
                 Comprobante Oficial de Operación

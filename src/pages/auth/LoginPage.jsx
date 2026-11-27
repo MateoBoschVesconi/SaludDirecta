@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-do
 import { Lock, Mail, AlertCircle, CheckCircle2, Stethoscope, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService, findRegisteredUserByEmail } from '../../api/authService';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -129,9 +130,12 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto mt-10 px-4 pb-16 animate-in fade-in duration-300">
       <div className="card p-6 sm:p-8">
         <div className="text-center mb-6">
-          <div className="inline-flex p-3 rounded-2xl bg-sky-50 text-primary-dark mb-3">
-            <Lock className="w-6 h-6" aria-hidden="true" />
-          </div>
+          <img
+            src={logoIsotipo}
+            alt=""
+            aria-hidden="true"
+            className="w-14 h-14 object-contain mx-auto mb-3"
+          />
           <h1 className="text-2xl font-bold text-text-main">Iniciar Sesión</h1>
           <p className="text-xs text-text-muted mt-1">Accedé a tu cuenta en Salud Directa</p>
         </div>

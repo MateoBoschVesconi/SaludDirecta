@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calendar, FileText, UserCheck, Package, ShieldCheck, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 export default function ProfessionalLayout() {
   const { user, logout } = useAuth();
@@ -34,8 +35,14 @@ export default function ProfessionalLayout() {
         aria-label="Menú del panel profesional"
       >
         <div>
-          <div className="p-5 border-b border-borderSubtle flex items-center justify-between">
-            <div>
+          <div className="p-5 border-b border-borderSubtle flex items-center gap-3">
+            <img
+              src={logoIsotipo}
+              alt=""
+              aria-hidden="true"
+              className="w-9 h-9 object-contain flex-shrink-0"
+            />
+            <div className="min-w-0">
               <span className="text-xs font-bold uppercase tracking-wider text-primary-dark">Panel Profesional</span>
               <h2 className="font-bold text-text-main text-lg truncate">{user?.nombre || 'Profesional'}</h2>
               <span className="badge-success mt-1 inline-flex text-[11px]">Matrícula Verificada</span>

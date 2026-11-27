@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShieldCheck, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -17,9 +18,17 @@ export default function Footer() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-slate-800 text-sm">
           <div>
-            <h2 className="text-white font-bold text-base mb-3 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" aria-hidden="true" />
-              Salud Directa
+            <h2 className="text-white font-extrabold text-lg mb-3 flex items-center gap-2.5 tracking-tight">
+              <img
+                src={logoIsotipo}
+                alt=""
+                aria-hidden="true"
+                className="w-8 h-8 object-contain flex-shrink-0"
+              />
+              <span>
+                <span className="text-white">SALUD</span>
+                <span className="text-sky-400">DIRECTA</span>
+              </span>
             </h2>
             <p className="text-slate-400 text-xs leading-relaxed">
               Plataforma de vinculación transparente entre pacientes sin cobertura y profesionales particulares con matrículas verificadas ante organismos oficiales (SISA / REFEPS).

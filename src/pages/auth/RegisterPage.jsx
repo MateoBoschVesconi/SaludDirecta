@@ -4,6 +4,7 @@ import { ShieldCheck, User, Stethoscope, FileCheck, AlertCircle } from 'lucide-r
 import { useAuth } from '../../context/AuthContext';
 import { authService, saveRegisteredUser } from '../../api/authService';
 import { profesionalService } from '../../api/profesionalService';
+import logoIsotipo from '../../assets/logo-isotipo.png';
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -149,9 +150,12 @@ export default function RegisterPage() {
     <div className="max-w-xl mx-auto mt-8 px-4 pb-16 animate-in fade-in duration-300">
       <div className="card p-6 sm:p-8">
         <div className="text-center mb-6">
-          <div className="inline-flex p-3 rounded-2xl bg-sky-50 text-primary-dark mb-3">
-            <ShieldCheck className="w-6 h-6" aria-hidden="true" />
-          </div>
+          <img
+            src={logoIsotipo}
+            alt=""
+            aria-hidden="true"
+            className="w-14 h-14 object-contain mx-auto mb-3"
+          />
           <h1 className="text-2xl font-bold text-text-main">Crear Cuenta</h1>
           <p className="text-xs text-text-muted mt-1">Registrate en Salud Directa para continuar</p>
         </div>
